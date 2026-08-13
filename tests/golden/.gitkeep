@@ -1,0 +1,3 @@
+# Golden reference directory
+# This directory stores golden output files for regression testing
+# Generate with: pytest tests/ --update-golden

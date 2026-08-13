@@ -66,6 +66,30 @@ validate:
 	@echo "Validating model accuracy..."
 	$(PYTHON) model/validation/validate.py
 
+## weights-to-verilog: Convert quantized weights to Verilog modules
+weights-to-verilog:
+	@echo "Converting quantized weights to Verilog..."
+	$(PYTHON) model/conversion/weights_to_verilog.py \
+		-w $(MODEL_DIR)/weights/quantized \
+		-o $(RTL_DIR)
+	@echo "✓ Verilog weight modules generated in $(RTL_DIR)/"
+
+## weights-to-verilog-vision: Convert only vision encoder weights
+weights-to-verilog-vision:
+	@echo "Converting vision encoder weights to Verilog..."
+	$(PYTHON) model/conversion/weights_to_verilog.py \
+		-w $(MODEL_DIR)/weights/quantized \
+		-o $(RTL_DIR) \
+		-f vision
+
+## weights-to-verilog-llm: Convert only language model weights
+weights-to-verilog-llm:
+	@echo "Converting language model weights to Verilog..."
+	$(PYTHON) model/conversion/weights_to_verilog.py \
+		-w $(MODEL_DIR)/weights/quantized \
+		-o $(RTL_DIR) \
+		-f language
+
 # =============================================================================
 # Simulation
 # =============================================================================
@@ -102,13 +126,27 @@ synth:
 ## synth-docker: Run synthesis via Docker
 synth-docker:
 	@echo "Running synthesis in Docker..."
-	docker run --rm -v $(PROJECT_ROOT):/work efabless/openlane:latest \
-		bash -c "cd /work/synthesis && make synth"
+	cd $(SYNTH_DIR) && $(MAKE) synth-docker
+
+## synth-quick: Quick synthesis (skip routing)
+synth-quick:
+	@echo "Running quick synthesis..."
+	cd $(SYNTH_DIR) && $(MAKE) synth-quick
+
+## synth-lint: Lint Verilog before synthesis
+synth-lint:
+	@echo "Linting Verilog..."
+	cd $(SYNTH_DIR) && $(MAKE) lint-iverilog
 
 ## reports: Generate synthesis reports
 reports:
 	@echo "Generating reports..."
 	cd $(SYNTH_DIR) && $(MAKE) reports
+
+## metrics: Display synthesis metrics
+metrics:
+	@echo "Displaying metrics..."
+	cd $(SYNTH_DIR) && $(MAKE) metrics
 
 # =============================================================================
 # Testing
@@ -128,6 +166,46 @@ test-model:
 test-rtl:
 	@echo "Testing RTL modules..."
 	pytest tests/test_rtl.py -v
+
+## test-quick: Quick test (essential tests only)
+test-quick:
+	@echo "Running quick tests..."
+	pytest tests/ -v -x --timeout=60 \
+		--ignore=tests/test_model_full.py \
+		--ignore=tests/test_synthesis.py
+
+# =============================================================================
+# CI/Verification
+# =============================================================================
+
+## ci: Run full CI pipeline locally
+ci: lint test-quick verilog-lint
+	@echo "✓ CI pipeline passed"
+
+## verilog-lint: Lint Verilog files with iverilog
+verilog-lint:
+	@echo "Checking Verilog syntax..."
+	@VERILOG_FILES=$$(find $(RTL_DIR) -name "*.v" -not -name "*_tb.v" -type f); \
+	if [ -z "$$VERILOG_FILES" ]; then \
+		echo "No Verilog files found"; \
+	else \
+		iverilog -g2012 -Wall \
+			-I$(RTL_DIR)/common \
+			-I$(RTL_DIR)/top \
+			-o /dev/null \
+			$$VERILOG_FILES && echo "✓ Verilog syntax OK"; \
+	fi
+
+## verilog-sim: Run Verilog simulation tests
+verilog-sim:
+	@echo "Running Verilog simulations..."
+	@if grep -q "SIMULATION" $(RTL_DIR)/common/popcount.v 2>/dev/null; then \
+		cd $(RTL_DIR)/common && \
+		iverilog -g2012 -DSIMULATION -o popcount_test popcount.v && \
+		vvp popcount_test; \
+	else \
+		echo "No simulation found"; \
+	fi
 
 # =============================================================================
 # Documentation
