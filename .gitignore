@@ -1,0 +1,109 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+venv/
+.venv/
+ENV/
+
+# Model weights (large files - download separately)
+model/smolvlm-256m/
+model/weights/*.bin
+model/weights/*.safetensors
+model/weights/*.pt
+model/weights/*.pth
+*.onnx
+
+# SkyWater PDK (large - add as submodule or download separately)
+pdk/skywater-pdk/
+
+# OpenLane outputs
+synthesis/runs/
+synthesis/designs/*/runs/
+*.gds
+*.mag
+*.lef
+*.def
+*.spef
+*.sdf
+
+# Simulation outputs
+rtl/**/*.vcd
+rtl/**/*.fst
+rtl/**/*.lxt
+rtl/**/*.wlf
+rtl/**/work/
+rtl/**/transcript
+rtl/**/*.log
+
+# FPGA build outputs
+fpga/**/*.bit
+fpga/**/*.bin
+fpga/**/build/
+fpga/**/.Xil/
+fpga/**/*.jou
+fpga/**/*.log
+fpga/**/*.dcp
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Build artifacts
+*.o
+*.a
+*.ko
+*.mod.c
+*.order
+*.symvers
+*.mod
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+
+# Secrets and credentials
+.env
+*.pem
+*.key
+credentials/
+
+# Large test data
+tests/data/images/
+tests/data/videos/
+
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+
+# Documentation build
+docs/_build/
+docs/site/
+
+# Jupyter notebooks checkpoints
+.ipynb_checkpoints/

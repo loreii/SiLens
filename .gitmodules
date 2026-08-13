@@ -1,0 +1,9 @@
+[submodule "pdk/skywater-pdk"]
+    path = pdk/skywater-pdk
+    url = https://github.com/google/skywater-pdk.git
+    branch = main
+
+[submodule "pdk/open_pdks"]
+    path = pdk/open_pdks
+    url = https://github.com/RTimothyEdwards/open_pdks.git
+    branch = master
