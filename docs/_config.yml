@@ -5,9 +5,10 @@ baseurl: "/SiLens" # Repository name
 url: "https://loreii.github.io"
 
 # Theme settings
-remote_theme: pages-themes/cayman@v0.2.0
+theme: jekyll-theme-cayman
 plugins:
-  - jekyll-remote-theme
+  - jekyll-seo-tag
+  - jekyll-sitemap
 
 # Navigation
 nav:

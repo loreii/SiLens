@@ -1,0 +1,80 @@
+---
+---
+
+@import "{{ site.theme }}";
+
+/* Custom SiLens Styles */
+
+:root {
+  --silens-primary: #2d7dd2;
+  --silens-secondary: #45b649;
+  --silens-dark: #1a1a2e;
+  --silens-light: #f7f7f7;
+}
+
+/* Header customization */
+.page-header {
+  background: linear-gradient(135deg, var(--silens-dark) 0%, #16213e 50%, var(--silens-primary) 100%);
+}
+
+/* Feature boxes */
+.features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin: 2rem 0;
+}
+
+.feature {
+  background: var(--silens-light);
+  padding: 1rem;
+  border-radius: 8px;
+  border-left: 4px solid var(--silens-primary);
+}
+
+/* Tables */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+}
+
+th {
+  background: var(--silens-dark);
+  color: white;
+  padding: 0.75rem;
+  text-align: left;
+}
+
+td {
+  padding: 0.75rem;
+  border-bottom: 1px solid #ddd;
+}
+
+tr:hover {
+  background: var(--silens-light);
+}
+
+/* Code blocks */
+pre {
+  background: #1a1a2e;
+  border-radius: 8px;
+  padding: 1rem;
+  overflow-x: auto;
+}
+
+code {
+  font-family: 'Monaco', 'Menlo', monospace;
+}
+
+/* Status badges */
+.status-progress { color: #f39c12; }
+.status-complete { color: #27ae60; }
+.status-pending { color: #e74c3c; }
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .features {
+    grid-template-columns: 1fr;
+  }
+}
