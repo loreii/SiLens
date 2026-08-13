@@ -210,6 +210,10 @@ pytest tests/
 
 ## Architecture Overview
 
+📖 **Deep Dives:**
+- [Attention Mechanism](docs/architecture/ATTENTION_MECHANISM.md) — How SiLens implements hardware-optimized attention with ternary weights, KV caching, RoPE, and approximate softmax
+- [Full Architecture](docs/architecture/ARCHITECTURE.md) — Complete system design
+
 ### Model: SmolVLM-256M
 
 | Component | Parameters | Function |

@@ -1,0 +1,47 @@
+# SiLens GitHub Pages Configuration
+title: SiLens
+description: Open-Source Hardwired Vision-Language AI Accelerator
+baseurl: "/SiLens" # Repository name
+url: "https://loreii.github.io"
+
+# Theme settings
+remote_theme: pages-themes/cayman@v0.2.0
+plugins:
+  - jekyll-remote-theme
+
+# Navigation
+nav:
+  - title: Home
+    url: /
+  - title: Architecture
+    url: /architecture/
+  - title: Getting Started
+    url: /getting-started/
+  - title: Documentation
+    url: /docs/
+  - title: FAQ
+    url: /faq/
+  - title: Kickstarter
+    url: /kickstarter/
+
+# Social links
+github_username: loreii
+twitter_username: silens_ai
+
+# Build settings
+markdown: kramdown
+highlighter: rouge
+
+# Exclude from build
+exclude:
+  - README.md
+  - Gemfile
+  - Gemfile.lock
+  - vendor
+
+# SEO
+author: SiLens Technologies
+logo: /assets/images/silens-logo.png
+
+# Google Analytics (optional)
+# google_analytics: UA-XXXXXXXX-X
