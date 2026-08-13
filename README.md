@@ -123,10 +123,31 @@ docker pull efabless/openlane:latest
 
 ## Quick Start
 
+### 🎮 Try the Interactive Demo
+
+The fastest way to explore SiLens capabilities:
+
+```bash
+git clone https://github.com/loreii/SiLens.git
+cd SiLens
+pip install numpy
+python demo.py
+```
+
+The demo showcases:
+| Demo | Description |
+|------|-------------|
+| **1. Ternary Quantization** | Convert FP32 weights to 2-bit ternary (16x compression) |
+| **2. Hardware Simulation** | Interact with simulated SiLens accelerator |
+| **3. Performance Profiling** | Detailed timing and throughput analysis |
+| **4. Multi-Device Inference** | Distributed batch processing |
+| **5. Sparse Attention** | Attention pattern optimization for hardware |
+| **6. End-to-End Pipeline** | Complete inference demonstration |
+
 ### 1. Clone Repository
 
 ```bash
-git clone https://github.com/[your-org]/SiLens.git
+git clone https://github.com/loreii/SiLens.git
 cd SiLens
 git submodule update --init --recursive
 ```
