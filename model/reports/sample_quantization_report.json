@@ -1,0 +1,84 @@
+{
+  "report_type": "quantization_analysis",
+  "model": "SmolVLM-256M-Instruct",
+  "timestamp": "2024-01-15T10:30:00Z",
+  "configuration": {
+    "alpha": 0.7,
+    "mode": "per_tensor",
+    "skip_normalization": true,
+    "skip_embeddings": false
+  },
+  "summary": {
+    "total_parameters": 256000000,
+    "quantized_parameters": 245000000,
+    "skipped_parameters": 11000000,
+    "compression_ratio": 16.0,
+    "memory_original_mb": 1024,
+    "memory_quantized_mb": 64
+  },
+  "weight_distribution": {
+    "positive_count": 78400000,
+    "negative_count": 81200000,
+    "zero_count": 85400000,
+    "positive_pct": 32.0,
+    "negative_pct": 33.2,
+    "zero_pct": 34.8,
+    "overall_sparsity": 0.348
+  },
+  "quality_metrics": {
+    "avg_cosine_similarity": 0.923,
+    "avg_mean_abs_error": 0.0342,
+    "avg_pearson_correlation": 0.918,
+    "max_layer_error": 0.089,
+    "layers_within_tolerance": 245,
+    "layers_outside_tolerance": 12
+  },
+  "component_analysis": {
+    "vision_encoder": {
+      "parameters": 100000000,
+      "avg_cosine": 0.935,
+      "avg_sparsity": 0.32
+    },
+    "projector": {
+      "parameters": 1300000,
+      "avg_cosine": 0.941,
+      "avg_sparsity": 0.28
+    },
+    "language_model": {
+      "parameters": 143700000,
+      "avg_cosine": 0.914,
+      "avg_sparsity": 0.37
+    }
+  },
+  "problematic_layers": [
+    {
+      "name": "language_model.model.layers.0.self_attn.q_proj.weight",
+      "cosine_similarity": 0.842,
+      "reason": "First attention layer, sensitive to quantization",
+      "recommendation": "Consider higher precision or lower alpha"
+    },
+    {
+      "name": "language_model.model.layers.29.mlp.up_proj.weight",
+      "cosine_similarity": 0.856,
+      "reason": "Last layer MLP, high kurtosis",
+      "recommendation": "Apply outlier clipping"
+    }
+  ],
+  "recommendations": [
+    {
+      "priority": "high",
+      "action": "Use per-channel quantization for attention layers",
+      "expected_improvement": "+2-3% accuracy"
+    },
+    {
+      "priority": "medium",
+      "action": "Apply percentile clipping (99.5%) before quantization",
+      "expected_improvement": "+1% cosine similarity"
+    },
+    {
+      "priority": "low",
+      "action": "Consider mixed precision for lm_head",
+      "expected_improvement": "+0.5% accuracy"
+    }
+  ]
+}

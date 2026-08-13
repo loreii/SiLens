@@ -615,6 +615,310 @@ def search_optimal_alpha(model_path: str,
     }
 
 
+class GradientBasedAlphaOptimizer:
+    """
+    Gradient-based optimization of alpha parameter for each layer.
+    
+    Uses differentiable approximation of ternary quantization to find
+    optimal alpha values that minimize reconstruction error.
+    
+    Theory:
+        We use a straight-through estimator (STE) approximation where:
+        - Forward: hard ternary quantization
+        - Backward: gradient flows through soft approximation
+        
+        The soft ternary function uses tanh:
+        q_soft(w) = tanh(β * (w - τ)) - tanh(β * (w + τ))
+        
+        where τ = α * mean(|w|) and β controls sharpness.
+    """
+    
+    def __init__(self, 
+                 learning_rate: float = 0.01,
+                 num_iterations: int = 100,
+                 beta: float = 10.0,
+                 mse_weight: float = 1.0,
+                 cosine_weight: float = 0.5):
+        """
+        Initialize the gradient-based optimizer.
+        
+        Args:
+            learning_rate: Learning rate for alpha optimization
+            num_iterations: Number of optimization iterations
+            beta: Sharpness parameter for soft quantization
+            mse_weight: Weight for MSE loss
+            cosine_weight: Weight for cosine similarity loss
+        """
+        self.learning_rate = learning_rate
+        self.num_iterations = num_iterations
+        self.beta = beta
+        self.mse_weight = mse_weight
+        self.cosine_weight = cosine_weight
+    
+    def soft_ternary_quantize(self, weights: torch.Tensor, 
+                               alpha: torch.Tensor) -> torch.Tensor:
+        """
+        Soft (differentiable) ternary quantization.
+        
+        Args:
+            weights: Weight tensor
+            alpha: Threshold parameter (trainable)
+            
+        Returns:
+            Soft-quantized weights
+        """
+        # Compute threshold
+        abs_mean = torch.mean(torch.abs(weights))
+        threshold = alpha * abs_mean
+        
+        # Soft ternary: approximates sign(w) * (|w| > threshold)
+        # Using tanh for smooth approximation
+        positive = torch.tanh(self.beta * (weights - threshold))
+        negative = torch.tanh(self.beta * (-weights - threshold))
+        
+        soft_quantized = (positive - negative) / 2
+        
+        return soft_quantized
+    
+    def compute_loss(self, original: torch.Tensor, 
+                     quantized: torch.Tensor,
+                     scale: torch.Tensor) -> torch.Tensor:
+        """
+        Compute combined loss for optimization.
+        
+        Args:
+            original: Original weights
+            quantized: Soft-quantized weights
+            scale: Scale factor
+            
+        Returns:
+            Combined loss value
+        """
+        # Dequantize
+        dequantized = quantized * scale
+        
+        # MSE loss
+        mse_loss = torch.mean((original - dequantized) ** 2)
+        
+        # Cosine similarity loss
+        orig_flat = original.flatten()
+        deq_flat = dequantized.flatten()
+        
+        cosine_sim = torch.nn.functional.cosine_similarity(
+            orig_flat.unsqueeze(0), 
+            deq_flat.unsqueeze(0)
+        )
+        cosine_loss = 1 - cosine_sim
+        
+        # Combined loss
+        total_loss = self.mse_weight * mse_loss + self.cosine_weight * cosine_loss
+        
+        return total_loss
+    
+    def optimize_alpha(self, weights: np.ndarray, 
+                       initial_alpha: float = 0.7,
+                       verbose: bool = False) -> Tuple[float, Dict[str, Any]]:
+        """
+        Optimize alpha for a single layer using gradient descent.
+        
+        Args:
+            weights: Original FP32 weights
+            initial_alpha: Starting alpha value
+            verbose: Print optimization progress
+            
+        Returns:
+            Tuple of (optimal_alpha, optimization_stats)
+        """
+        # Convert to tensor
+        weights_tensor = torch.from_numpy(weights.astype(np.float32))
+        weights_tensor.requires_grad_(False)
+        
+        # Initialize alpha as trainable parameter
+        alpha = torch.tensor([initial_alpha], requires_grad=True)
+        
+        # Optimizer
+        optimizer = torch.optim.Adam([alpha], lr=self.learning_rate)
+        
+        # Track optimization
+        loss_history = []
+        alpha_history = []
+        
+        for i in range(self.num_iterations):
+            optimizer.zero_grad()
+            
+            # Clamp alpha to valid range
+            with torch.no_grad():
+                alpha.clamp_(0.1, 0.99)
+            
+            # Soft quantize
+            soft_quantized = self.soft_ternary_quantize(weights_tensor, alpha)
+            
+            # Compute scale (mean of non-zero magnitudes)
+            # Use soft approximation: sigmoid-weighted mean
+            importance = torch.sigmoid(self.beta * (torch.abs(soft_quantized) - 0.5))
+            scale = torch.sum(importance * torch.abs(weights_tensor)) / (torch.sum(importance) + 1e-8)
+            
+            # Compute loss
+            loss = self.compute_loss(weights_tensor, soft_quantized, scale)
+            
+            # Backward pass
+            loss.backward()
+            
+            # Update alpha
+            optimizer.step()
+            
+            # Record
+            loss_history.append(loss.item())
+            alpha_history.append(alpha.item())
+            
+            if verbose and (i + 1) % 20 == 0:
+                logger.info(f"  Iter {i+1}: loss={loss.item():.6f}, alpha={alpha.item():.4f}")
+        
+        optimal_alpha = float(alpha.item())
+        
+        # Clamp to valid range
+        optimal_alpha = max(0.1, min(0.99, optimal_alpha))
+        
+        stats = {
+            'initial_alpha': initial_alpha,
+            'final_alpha': optimal_alpha,
+            'initial_loss': loss_history[0],
+            'final_loss': loss_history[-1],
+            'loss_reduction': (loss_history[0] - loss_history[-1]) / loss_history[0],
+            'iterations': self.num_iterations,
+        }
+        
+        return optimal_alpha, stats
+    
+    def optimize_model_alphas(self, model_path: str,
+                               progress: bool = True) -> Dict[str, Tuple[float, Dict]]:
+        """
+        Optimize alpha for all layers in the model.
+        
+        Args:
+            model_path: Path to model or HuggingFace ID
+            progress: Show progress bar
+            
+        Returns:
+            Dictionary mapping layer names to (optimal_alpha, stats)
+        """
+        try:
+            from transformers import AutoModelForVision2Seq
+            from tqdm import tqdm
+        except ImportError:
+            logger.error("transformers or tqdm not installed")
+            return {}
+        
+        logger.info(f"Loading model: {model_path}")
+        model = AutoModelForVision2Seq.from_pretrained(
+            model_path,
+            torch_dtype=torch.float32,
+            trust_remote_code=True,
+        )
+        
+        results = {}
+        
+        # Get layers to optimize
+        layers_to_optimize = []
+        for name, param in model.named_parameters():
+            if 'weight' not in name or param.ndim < 2:
+                continue
+            if param.numel() < 64:
+                continue
+            if any(x in name.lower() for x in ['layernorm', 'layer_norm', 'rmsnorm']):
+                continue
+            layers_to_optimize.append((name, param))
+        
+        logger.info(f"Optimizing alpha for {len(layers_to_optimize)} layers...")
+        
+        if progress:
+            from tqdm import tqdm
+            iterator = tqdm(layers_to_optimize, desc="Optimizing")
+        else:
+            iterator = layers_to_optimize
+        
+        for name, param in iterator:
+            weights = param.detach().float().cpu().numpy()
+            optimal_alpha, stats = self.optimize_alpha(weights)
+            results[name] = (optimal_alpha, stats)
+        
+        return results
+    
+    def print_optimization_summary(self, results: Dict[str, Tuple[float, Dict]]) -> None:
+        """Print summary of alpha optimization results."""
+        if not results:
+            print("No optimization results to display")
+            return
+        
+        print("\n" + "=" * 70)
+        print("GRADIENT-BASED ALPHA OPTIMIZATION SUMMARY")
+        print("=" * 70)
+        
+        alphas = [r[0] for r in results.values()]
+        reductions = [r[1]['loss_reduction'] for r in results.values()]
+        
+        print(f"\nLayers optimized: {len(results)}")
+        print(f"\nAlpha distribution:")
+        print(f"  Mean: {np.mean(alphas):.3f}")
+        print(f"  Std:  {np.std(alphas):.3f}")
+        print(f"  Min:  {np.min(alphas):.3f}")
+        print(f"  Max:  {np.max(alphas):.3f}")
+        
+        print(f"\nLoss reduction:")
+        print(f"  Mean: {np.mean(reductions):.1%}")
+        print(f"  Max:  {np.max(reductions):.1%}")
+        
+        # Show layers with significant changes
+        significant_changes = [
+            (name, alpha, stats) 
+            for name, (alpha, stats) in results.items()
+            if abs(alpha - 0.7) > 0.1
+        ]
+        
+        if significant_changes:
+            print(f"\nLayers with significant alpha changes (>0.1 from 0.7):")
+            for name, alpha, stats in sorted(significant_changes, key=lambda x: abs(x[1] - 0.7), reverse=True)[:10]:
+                print(f"  {name}: α={alpha:.3f} (Δ={alpha-0.7:+.3f})")
+
+
+def optimize_alpha_gradient(model_path: str,
+                            learning_rate: float = 0.01,
+                            num_iterations: int = 100,
+                            progress: bool = True) -> Dict[str, Any]:
+    """
+    Convenience function for gradient-based alpha optimization.
+    
+    Args:
+        model_path: Path to model or HuggingFace ID
+        learning_rate: Learning rate for optimization
+        num_iterations: Number of optimization iterations
+        progress: Show progress bar
+        
+    Returns:
+        Dictionary with optimization results
+    """
+    optimizer = GradientBasedAlphaOptimizer(
+        learning_rate=learning_rate,
+        num_iterations=num_iterations
+    )
+    
+    results = optimizer.optimize_model_alphas(model_path, progress=progress)
+    optimizer.print_optimization_summary(results)
+    
+    # Create per-layer alpha configuration
+    layer_alphas = {name: alpha for name, (alpha, _) in results.items()}
+    
+    return {
+        'layer_alphas': layer_alphas,
+        'detailed_results': results,
+        'summary': {
+            'mean_alpha': np.mean(list(layer_alphas.values())),
+            'std_alpha': np.std(list(layer_alphas.values())),
+            'num_layers': len(layer_alphas),
+        }
+    }
+
+
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
@@ -633,6 +937,9 @@ Examples:
     
     # Search for optimal alpha
     python quantize_ternary.py --model HuggingFaceTB/SmolVLM-256M-Instruct --search-alpha
+    
+    # Gradient-based alpha optimization (recommended for best accuracy)
+    python quantize_ternary.py --model HuggingFaceTB/SmolVLM-256M-Instruct --optimize-alpha
         """
     )
     
@@ -672,6 +979,23 @@ Examples:
         help="Search for optimal alpha value"
     )
     parser.add_argument(
+        "--optimize-alpha",
+        action="store_true",
+        help="Use gradient-based alpha optimization (per-layer)"
+    )
+    parser.add_argument(
+        "--opt-lr",
+        type=float,
+        default=0.01,
+        help="Learning rate for gradient-based optimization"
+    )
+    parser.add_argument(
+        "--opt-iters",
+        type=int,
+        default=100,
+        help="Number of iterations for gradient-based optimization"
+    )
+    parser.add_argument(
         "--device",
         type=str,
         default='cpu',
@@ -687,6 +1011,31 @@ Examples:
     if args.search_alpha:
         results = search_optimal_alpha(args.model)
         print(f"\nOptimal alpha: {results['optimal_alpha']}")
+        return
+    
+    if args.optimize_alpha:
+        print("\nRunning gradient-based alpha optimization...")
+        results = optimize_alpha_gradient(
+            args.model,
+            learning_rate=args.opt_lr,
+            num_iterations=args.opt_iters,
+            progress=True
+        )
+        
+        # Save optimized alphas
+        if args.export:
+            import json
+            from pathlib import Path
+            output_path = Path(args.output)
+            output_path.mkdir(parents=True, exist_ok=True)
+            
+            with open(output_path / 'optimized_alphas.json', 'w') as f:
+                json.dump({
+                    'layer_alphas': results['layer_alphas'],
+                    'summary': results['summary']
+                }, f, indent=2)
+            
+            print(f"\nOptimized alphas saved to: {output_path / 'optimized_alphas.json'}")
         return
     
     # Create configuration

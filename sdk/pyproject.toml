@@ -1,0 +1,100 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "silens"
+version = "0.1.0"
+description = "Python SDK for SiLens Vision-Language AI Accelerator"
+readme = "README.md"
+license = {text = "Apache-2.0"}
+authors = [
+    {name = "SiLens Team", email = "team@silens.ai"},
+]
+maintainers = [
+    {name = "SiLens Team", email = "team@silens.ai"},
+]
+keywords = [
+    "ai",
+    "accelerator",
+    "vision",
+    "language",
+    "model",
+    "hardware",
+    "inference",
+    "vlm",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: System :: Hardware :: Hardware Drivers",
+]
+requires-python = ">=3.9"
+dependencies = [
+    "numpy>=1.24.0",
+    "pillow>=10.0.0",
+]
+
+[project.optional-dependencies]
+full = [
+    "transformers>=4.40.0",
+    "torch>=2.0.0",
+    "huggingface_hub>=0.20.0",
+]
+usb = [
+    "pyusb>=1.2.0",
+]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "black>=23.0.0",
+    "flake8>=6.0.0",
+    "mypy>=1.5.0",
+    "isort>=5.12.0",
+]
+docs = [
+    "mkdocs>=1.5.0",
+    "mkdocs-material>=9.4.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/silens/silens-sdk"
+Documentation = "https://docs.silens.ai"
+Repository = "https://github.com/silens/silens-sdk"
+Issues = "https://github.com/silens/silens-sdk/issues"
+Changelog = "https://github.com/silens/silens-sdk/blob/main/CHANGELOG.md"
+
+[project.scripts]
+silens = "silens.cli:main"
+silens-info = "silens.cli:info_cmd"
+silens-benchmark = "silens.cli:benchmark_cmd"
+
+[tool.setuptools.packages.find]
+exclude = ["tests*", "examples*", "docs*"]
+
+[tool.black]
+line-length = 100
+target-version = ["py39", "py310", "py311", "py312"]
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --cov=silens --cov-report=term-missing"

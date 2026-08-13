@@ -36,6 +36,9 @@ DEFAULT_MODEL_PATH = PROJECT_ROOT / "model" / "smolvlm-256m"
 # Test data directory
 TEST_DATA_DIR = PROJECT_ROOT / "tests" / "test_data"
 
+# Fixtures directory
+FIXTURES_DIR = PROJECT_ROOT / "tests" / "fixtures"
+
 # Golden outputs directory
 GOLDEN_DIR = PROJECT_ROOT / "tests" / "golden"
 
@@ -376,6 +379,13 @@ def test_data_dir() -> Path:
     """Get the test data directory."""
     TEST_DATA_DIR.mkdir(parents=True, exist_ok=True)
     return TEST_DATA_DIR
+
+
+@pytest.fixture(scope="session")
+def fixtures_dir() -> Path:
+    """Get the fixtures directory."""
+    FIXTURES_DIR.mkdir(parents=True, exist_ok=True)
+    return FIXTURES_DIR
 
 
 @pytest.fixture

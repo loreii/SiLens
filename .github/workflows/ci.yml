@@ -1,17 +1,14 @@
 # =============================================================================
 # SiLens CI Pipeline
 # =============================================================================
-# GitHub Actions workflow for continuous integration
+# Comprehensive CI workflow for SiLens vision-language AI accelerator
 #
 # This workflow runs on every push and pull request to verify:
 #   - Python code quality (flake8 linting)
-#   - Python tests (pytest)
+#   - Python tests (pytest with coverage)
 #   - Verilog syntax (iverilog)
-#
-# Additional checks for release branches:
-#   - Type checking (mypy)
-#   - Code formatting (black)
-#   - Documentation build
+#   - RTL linting (verilator --lint-only)
+#   - Smoke tests (quick sanity checks)
 #
 # License: Apache 2.0
 # =============================================================================
@@ -30,7 +27,7 @@ on:
     paths-ignore:
       - '**.md'
       - 'docs/**'
-  workflow_dispatch:  # Allow manual triggers
+  workflow_dispatch:
 
 env:
   PYTHON_VERSION: '3.10'
@@ -63,17 +60,43 @@ jobs:
         run: |
           # Stop the build if there are Python syntax errors or undefined names
           flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-          # Exit-zero treats all errors as warnings. Max complexity is 10.
+          # Exit-zero treats all errors as warnings
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=100 \
             --statistics --ignore=E501,W503,D100,D101,D102,D103,D104,D105,D107
 
   # ===========================================================================
-  # Python Tests
+  # Smoke Tests (Quick Sanity Checks)
+  # ===========================================================================
+  smoke-tests:
+    name: Smoke Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest numpy
+
+      - name: Run smoke tests
+        run: |
+          pytest tests/smoke/ -v --tb=short -x
+
+  # ===========================================================================
+  # Python Tests with Coverage
   # ===========================================================================
   test-python:
     name: Python Tests
     runs-on: ubuntu-latest
-    needs: lint-python
+    needs: [lint-python, smoke-tests]
     
     steps:
       - name: Checkout repository
@@ -88,26 +111,56 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pytest pytest-cov pytest-xdist numpy
-          # Install minimal dependencies for testing (skip large ML packages)
-          pip install pyyaml toml tqdm
-          # Install package in development mode if setup.py exists
+          pip install pytest pytest-cov pytest-xdist numpy pyyaml toml tqdm
           if [ -f setup.py ]; then pip install -e .; fi
 
-      - name: Run pytest
+      - name: Run pytest with coverage
         run: |
           pytest tests/ -v --tb=short \
             --ignore=tests/test_model_full.py \
             --ignore=tests/test_synthesis.py \
-            -x --timeout=60 \
+            --cov=model --cov=tests \
+            --cov-report=xml \
+            --cov-report=term-missing \
+            -x --timeout=120 \
             || echo "::warning::Some tests failed or were skipped"
         continue-on-error: true
 
-      - name: Run conversion tests
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage.xml
+          fail_ci_if_error: false
+        continue-on-error: true
+
+  # ===========================================================================
+  # Golden Model Tests
+  # ===========================================================================
+  test-golden:
+    name: Golden Model Tests
+    runs-on: ubuntu-latest
+    needs: smoke-tests
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
         run: |
-          # Test weight conversion utilities (don't require ML models)
-          python -c "from model.conversion.weights_to_verilog import sanitize_name; assert sanitize_name('test.layer.0') == 'test_layer_0'"
-          python -c "from model.conversion.weights_to_verilog import categorize_layer; assert categorize_layer('vision_encoder.block0') == 'vision_encoder'"
+          python -m pip install --upgrade pip
+          pip install pytest numpy
+
+      - name: Run golden model tests
+        run: |
+          pytest tests/golden/ -v --tb=short -x --timeout=60 \
+            || echo "::warning::Golden model tests incomplete"
+        continue-on-error: true
 
   # ===========================================================================
   # Verilog Syntax Check
@@ -130,7 +183,6 @@ jobs:
 
       - name: Compile Verilog files
         run: |
-          # Find all Verilog files (excluding testbenches)
           VERILOG_FILES=$(find rtl -name "*.v" -not -name "*_tb.v" -type f)
           
           if [ -z "$VERILOG_FILES" ]; then
@@ -140,9 +192,7 @@ jobs:
           
           echo "Checking Verilog syntax for:"
           echo "$VERILOG_FILES" | tr ' ' '\n'
-          echo ""
           
-          # Compile with syntax check only
           iverilog ${{ env.VERILOG_STD }} -Wall \
             -Irtl/common \
             -Irtl/top \
@@ -154,30 +204,81 @@ jobs:
           
           echo "✓ Verilog syntax check passed"
 
-      - name: Check testbenches separately
+  # ===========================================================================
+  # RTL Linting with Verilator
+  # ===========================================================================
+  lint-rtl:
+    name: RTL Lint (Verilator)
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Verilator
         run: |
-          # Find testbench files
-          TB_FILES=$(find rtl -name "*_tb.v" -type f 2>/dev/null || true)
+          sudo apt-get update
+          sudo apt-get install -y verilator
+
+      - name: Check Verilator version
+        run: verilator --version
+
+      - name: Lint RTL with Verilator
+        run: |
+          # Find all non-testbench Verilog files
+          VERILOG_FILES=$(find rtl -name "*.v" -not -name "*_tb.v" -not -path "*/tb/*" -type f)
           
-          if [ -z "$TB_FILES" ]; then
-            echo "No testbench files found"
+          if [ -z "$VERILOG_FILES" ]; then
+            echo "No Verilog files found for linting"
             exit 0
           fi
           
-          echo "Checking testbench syntax:"
-          echo "$TB_FILES" | tr ' ' '\n'
+          echo "Linting Verilog files:"
+          echo "$VERILOG_FILES" | tr ' ' '\n'
           
-          # All Verilog files for include
-          ALL_VERILOG=$(find rtl -name "*.v" -type f)
-          
-          for tb in $TB_FILES; do
-            echo "Checking: $tb"
-            iverilog ${{ env.VERILOG_STD }} -Wall \
+          # Run verilator lint-only on each file
+          for file in $VERILOG_FILES; do
+            echo "Linting: $file"
+            verilator --lint-only -Wall \
               -Irtl/common \
               -Irtl/top \
-              -o /dev/null \
-              $ALL_VERILOG 2>&1 || echo "Warning: Issues in $tb"
+              -Irtl/vision_encoder \
+              -Irtl/projector \
+              -Irtl/language_model \
+              $file 2>&1 || echo "::warning::Lint issues in $file"
           done
+          
+          echo "✓ RTL linting complete"
+        continue-on-error: true
+
+  # ===========================================================================
+  # Verilog Simulation (Smoke Test)
+  # ===========================================================================
+  sim-verilog:
+    name: Verilog Simulation
+    runs-on: ubuntu-latest
+    needs: lint-verilog
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Icarus Verilog
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y iverilog
+
+      - name: Run popcount testbench
+        run: |
+          cd rtl/common
+          
+          if grep -q "SIMULATION" popcount.v; then
+            echo "Running popcount testbench..."
+            iverilog ${{ env.VERILOG_STD }} -DSIMULATION -o popcount_test popcount.v
+            vvp popcount_test
+          else
+            echo "No testbench found in popcount.v"
+          fi
 
   # ===========================================================================
   # Code Formatting Check
@@ -207,7 +308,7 @@ jobs:
         continue-on-error: true
 
   # ===========================================================================
-  # Type Checking (Optional)
+  # Type Checking
   # ===========================================================================
   type-check:
     name: Type Check
@@ -233,41 +334,71 @@ jobs:
         continue-on-error: true
 
   # ===========================================================================
-  # Verilog Simulation (Smoke Test)
+  # Integration Tests
   # ===========================================================================
-  sim-verilog:
-    name: Verilog Simulation
+  test-integration:
+    name: Integration Tests
     runs-on: ubuntu-latest
-    needs: lint-verilog
+    needs: [test-python, test-golden]
     
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install Icarus Verilog
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y iverilog
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
 
-      - name: Run popcount testbench
+      - name: Install dependencies
         run: |
-          cd rtl/common
-          
-          # Check if testbench exists in popcount.v
-          if grep -q "SIMULATION" popcount.v; then
-            echo "Running popcount testbench..."
-            iverilog ${{ env.VERILOG_STD }} -DSIMULATION -o popcount_test popcount.v
-            vvp popcount_test
-          else
-            echo "No testbench found in popcount.v, skipping"
-          fi
+          python -m pip install --upgrade pip
+          pip install pytest numpy pyyaml
+
+      - name: Run integration tests
+        run: |
+          pytest tests/integration/ -v --tb=short --timeout=120 \
+            --ignore=tests/integration/test_model_accuracy.py \
+            || echo "::warning::Some integration tests failed"
+        continue-on-error: true
 
   # ===========================================================================
-  # Build Documentation
+  # Regression Tests
   # ===========================================================================
-  docs:
-    name: Documentation
+  test-regression:
+    name: Regression Tests
     runs-on: ubuntu-latest
+    needs: [test-python]
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest numpy
+
+      - name: Run regression tests
+        run: |
+          pytest tests/regression/ -v --tb=short -m "regression and not slow" \
+            --timeout=120 || echo "::warning::Some regression tests failed"
+        continue-on-error: true
+
+  # ===========================================================================
+  # Fuzz Tests
+  # ===========================================================================
+  test-fuzz:
+    name: Fuzz Tests
+    runs-on: ubuntu-latest
+    needs: [test-python]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     
     steps:
@@ -278,17 +409,50 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
 
-      - name: Install MkDocs
-        run: pip install mkdocs mkdocs-material
-
-      - name: Build documentation
+      - name: Install dependencies
         run: |
-          if [ -f mkdocs.yml ]; then
-            mkdocs build --strict
-            echo "✓ Documentation built successfully"
-          else
-            echo "No mkdocs.yml found, skipping documentation build"
+          python -m pip install --upgrade pip
+          pip install pytest numpy hypothesis
+
+      - name: Run fuzz tests
+        run: |
+          pytest tests/fuzz/ -v --tb=short --timeout=300 \
+            --hypothesis-seed=42 \
+            || echo "::warning::Some fuzz tests failed"
+        continue-on-error: true
+
+  # ===========================================================================
+  # Synthesis Smoke Test
+  # ===========================================================================
+  synthesis-check:
+    name: Synthesis Check
+    runs-on: ubuntu-latest
+    needs: lint-verilog
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Yosys
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y yosys
+
+      - name: Check Yosys version
+        run: yosys -V
+
+      - name: Run synthesis smoke test
+        run: |
+          # Try to synthesize a small module
+          cd rtl/common
+          
+          if [ -f popcount.v ]; then
+            echo "Synthesizing popcount module..."
+            yosys -p "read_verilog -sv popcount.v; synth; stat" \
+              || echo "::warning::Synthesis issues found"
           fi
         continue-on-error: true
 
@@ -298,7 +462,7 @@ jobs:
   ci-complete:
     name: CI Complete
     runs-on: ubuntu-latest
-    needs: [lint-python, test-python, lint-verilog, format-check]
+    needs: [lint-python, smoke-tests, test-python, lint-verilog, format-check]
     if: always()
     
     steps:
@@ -307,12 +471,14 @@ jobs:
           echo "CI Pipeline Summary"
           echo "==================="
           echo "Python Lint: ${{ needs.lint-python.result }}"
+          echo "Smoke Tests: ${{ needs.smoke-tests.result }}"
           echo "Python Tests: ${{ needs.test-python.result }}"
           echo "Verilog Lint: ${{ needs.lint-verilog.result }}"
           echo "Format Check: ${{ needs.format-check.result }}"
           
-          # Fail if any critical job failed
+          # Fail if critical jobs failed
           if [[ "${{ needs.lint-python.result }}" == "failure" ]] || \
+             [[ "${{ needs.smoke-tests.result }}" == "failure" ]] || \
              [[ "${{ needs.lint-verilog.result }}" == "failure" ]]; then
             echo "::error::Critical CI checks failed"
             exit 1

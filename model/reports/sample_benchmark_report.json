@@ -1,0 +1,61 @@
+{
+  "report_type": "benchmark_evaluation",
+  "model": "SmolVLM-256M-Instruct",
+  "quantization": "ternary_alpha_0.7",
+  "timestamp": "2024-01-15T11:00:00Z",
+  "benchmarks": {
+    "vqa": {
+      "original_accuracy": 0.712,
+      "quantized_accuracy": 0.673,
+      "accuracy_drop": 0.039,
+      "relative_drop": 0.055,
+      "samples_evaluated": 1000,
+      "accuracy_by_type": {
+        "yes_no": {"original": 0.83, "quantized": 0.79},
+        "number": {"original": 0.61, "quantized": 0.57},
+        "color": {"original": 0.74, "quantized": 0.70},
+        "what": {"original": 0.65, "quantized": 0.61},
+        "where": {"original": 0.58, "quantized": 0.54}
+      },
+      "avg_latency_ms": {
+        "original": 245.3,
+        "quantized_simulated": 32.1
+      }
+    },
+    "textvqa": {
+      "original_accuracy": 0.551,
+      "quantized_accuracy": 0.508,
+      "accuracy_drop": 0.043,
+      "relative_drop": 0.078,
+      "samples_evaluated": 500
+    },
+    "caption": {
+      "original_bleu": 0.285,
+      "quantized_bleu": 0.261,
+      "score_drop": 0.024,
+      "relative_drop": 0.084,
+      "samples_evaluated": 500
+    }
+  },
+  "perplexity": {
+    "original": 14.8,
+    "quantized": 17.2,
+    "increase": 2.4,
+    "relative_increase": 0.162
+  },
+  "inference_comparison": {
+    "output_cosine_similarity": 0.934,
+    "hidden_state_mae": 0.041,
+    "token_match_rate": 0.87
+  },
+  "hardware_estimates": {
+    "memory_footprint_mb": 64,
+    "estimated_tops": 12.5,
+    "power_estimate_watts": 5.2,
+    "latency_per_token_ms": 2.1
+  },
+  "quality_assessment": {
+    "overall_grade": "B+",
+    "notes": "Good quantization quality with acceptable accuracy drop. Consider mixed precision for critical applications."
+  }
+}

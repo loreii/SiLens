@@ -1,202 +1,135 @@
-# SiLens RTL Design
+# SiLens RTL Source Code
+
+This directory contains the synthesizable Verilog RTL for the SiLens vision-language AI accelerator running SmolVLM-256M.
 
 ## Directory Structure
 
 ```
 rtl/
-├── common/           # Shared components
-│   ├── popcount.v    # Population count
-│   ├── softmax.v     # Softmax approximation
-│   ├── layernorm.v   # Layer normalization
-│   ├── gelu.v        # GELU activation
-│   └── fifo.v        # FIFOs for buffering
-│
-├── vision_encoder/   # SigLIP-B/16 implementation
-│   ├── patch_embed.v # Patch extraction + embedding
-│   ├── vit_block.v   # Vision transformer block
-│   ├── vit_encoder.v # Full 12-layer encoder
-│   └── weights/      # Generated weight files
-│
-├── language_model/   # SmolLM2-135M implementation
-│   ├── token_embed.v # Token embedding lookup
-│   ├── llm_block.v   # Transformer decoder block
-│   ├── llm_head.v    # LM head (logits)
-│   ├── llm_decoder.v # Full 30-layer decoder
-│   └── weights/      # Generated weight files
-│
-├── projector/        # Multimodal projector
-│   ├── projector.v   # 768→576 linear projection
-│   └── weights/      # Generated weight files
-│
-├── top/              # Top-level integration
-│   ├── silens_top.v  # Top-level module
-│   ├── pcie_ctrl.v   # PCIe controller
-│   ├── dma_engine.v  # DMA engine
-│   └── control.v     # Sequencing logic
-│
-└── tb/               # Testbenches
-    ├── Makefile      # Cocotb makefile
-    ├── test_*.py     # Python testbenches
-    └── *.vcd         # Waveform dumps
+├── common/                 # Shared utility modules
+│   ├── popcount.v         # Population count for binary operations
+│   ├── ternary_mac.v      # Ternary multiply-accumulate
+│   ├── binary_dot_product.v  # XNOR + popcount dot product
+│   ├── gelu_approx.v      # Piece-wise linear GELU approximation
+│   ├── layer_norm.v       # Layer normalization
+│   ├── softmax_approx.v   # Approximate softmax
+│   └── rms_norm.v         # RMS normalization (for LLM)
+├── vision_encoder/        # SigLIP-B/16 implementation (93M params)
+│   ├── patch_embed.v      # Patch extraction + embedding (384x384 -> 576x768)
+│   ├── vit_attention.v    # Multi-head self-attention (12 heads, 768 dim)
+│   ├── vit_mlp.v          # MLP block (768->3072->768 with GELU)
+│   ├── vit_block.v        # Complete transformer block
+│   └── vision_encoder.v   # Full encoder (12 blocks + final LN)
+├── projector/             # Multimodal projector
+│   └── projector.v        # Linear projection (768->576)
+├── language_model/        # SmolLM2-135M implementation (135M params)
+│   ├── llm_attention.v    # Grouped-query attention with KV cache + RoPE
+│   ├── llm_mlp.v          # SwiGLU MLP (576->1536->576)
+│   ├── llm_block.v        # Decoder block (RMSNorm + Attention + MLP)
+│   ├── llm_head.v         # LM head (RMSNorm + vocab projection)
+│   └── language_model.v   # Full decoder (30 blocks + embeddings)
+├── memory/                # On-chip memory subsystem
+│   ├── activation_buffer.v # Double-buffered activation storage
+│   ├── kv_cache.v         # Key-value cache for autoregressive decoding
+│   ├── embedding_rom.v    # Token embedding lookup table
+│   └── memory_controller.v # Arbiter for memory access
+├── pcie/                  # PCIe interface modules
+│   ├── pcie_wrapper.v     # Wrapper for vendor PCIe hard IP
+│   ├── dma_engine.v       # DMA controller for host transfers
+│   └── register_file.v    # Configuration and status registers
+├── top/                   # Top-level integration
+│   └── silens_top.v       # Complete SiLens accelerator
+└── tb/                    # Testbenches
+    ├── Makefile           # Cocotb testbench makefile
+    └── test_common.py     # Tests for common modules
 ```
 
-## Module Hierarchy
+## Architecture Parameters
 
-```
-silens_top
-├── pcie_ctrl
-│   ├── pcie_phy (external IP)
-│   └── dma_engine
-├── control
-│   └── sequencer
-├── vision_encoder
-│   ├── patch_embed
-│   └── vit_block × 12
-│       ├── layernorm
-│       ├── attention
-│       │   ├── qkv_proj (hardwired)
-│       │   ├── attention_scores
-│       │   └── out_proj (hardwired)
-│       └── mlp
-│           ├── fc1 (hardwired)
-│           ├── gelu
-│           └── fc2 (hardwired)
-├── projector
-│   └── linear (hardwired)
-└── language_model
-    ├── token_embed (hardwired)
-    ├── llm_block × 30
-    │   ├── layernorm
-    │   ├── attention
-    │   └── mlp
-    └── llm_head
+| Component | Parameter | Value |
+|-----------|-----------|-------|
+| Vision Encoder | Dimension | 768 |
+| Vision Encoder | Layers | 12 |
+| Vision Encoder | Heads | 12 |
+| Vision Encoder | Image Size | 384x384 |
+| Vision Encoder | Patch Size | 16x16 |
+| Vision Encoder | Output Tokens | 576 |
+| Projector | Input Dim | 768 |
+| Projector | Output Dim | 576 |
+| Language Model | Dimension | 576 |
+| Language Model | Layers | 30 |
+| Language Model | Heads | 9 |
+| Language Model | MLP Dim | 1536 |
+| Language Model | Vocabulary | 49,152 |
+| Language Model | Max Context | 8,192 |
+| Precision | Activation Width | 8 bits |
+| Precision | Accumulator Width | 32 bits |
+
+
+## Weight Encoding
+
+Ternary weights (-1, 0, +1) are encoded in 2 bits:
+- `00` = 0 (zero)
+- `01` = +1 (add activation)
+- `10` = -1 (subtract activation)
+- `11` = reserved
+
+This eliminates multipliers - MAC operations become add/subtract based on weight value.
+
+## Module Interfaces
+
+All modules use AXI-Stream-like valid/ready handshaking:
+
+```verilog
+// Input interface
+input  wire [DATA_WIDTH-1:0]  data_in,
+input  wire                   valid_in,
+output wire                   ready_in,
+
+// Output interface
+output reg  [DATA_WIDTH-1:0]  data_out,
+output reg                    valid_out,
+input  wire                   ready_out
 ```
 
 ## Coding Guidelines
 
-### Naming Conventions
+- Clock: `posedge clk`
+- Reset: Active-low synchronous `rst_n`
+- Naming: lowercase_with_underscores
+- Parameters: UPPERCASE
+- Target frequency: 100-200 MHz
 
-```verilog
-// Modules: lowercase with underscores
-module vit_block (...);
+## Running Testbenches
 
-// Signals: lowercase with underscores
-wire [7:0] activation_in;
-reg [15:0] accumulator;
+Each module includes an inline testbench (enabled with `ifdef SIMULATION):
 
-// Parameters: UPPERCASE
-parameter WIDTH = 768;
-parameter NUM_HEADS = 12;
+```bash
+# Using Icarus Verilog
+iverilog -DSIMULATION -o tb_ternary_mac rtl/common/ternary_mac.v
+vvp tb_ternary_mac
 
-// Constants: UPPERCASE with prefix
-localparam STATE_IDLE = 2'b00;
-localparam STATE_COMPUTE = 2'b01;
+# Using Verilator
+verilator --cc --exe -DSIMULATION rtl/common/ternary_mac.v
 ```
 
-### Clock and Reset
-
-```verilog
-// All modules use:
-//   clk    - positive edge clock
-//   rst_n  - active-low synchronous reset
-
-always @(posedge clk) begin
-    if (!rst_n) begin
-        state <= STATE_IDLE;
-    end else begin
-        // Normal operation
-    end
-end
+Or using cocotb:
+```bash
+cd rtl/tb
+make test_all
 ```
 
-### Hardwired Weights
+## Key Design Decisions
 
-Weight files are generated by `model/conversion/convert_weights.py`:
-
-```verilog
-// weights/layer0_qkv.v
-// Auto-generated - do not edit manually
-
-module layer0_qkv_weights (
-    input  wire [767:0] activation,
-    output wire [767:0] result
-);
-    // Weight[0] = +1: pass through
-    assign result[0] = activation[0];
-    
-    // Weight[1] = -1: negate
-    assign result[1] = ~activation[1] + 1'b1;
-    
-    // Weight[2] = 0: zero
-    assign result[2] = 1'b0;
-    
-    // ... (generated for all weights)
-endmodule
-```
-
-## Verification Strategy
-
-### Unit Tests (per module)
-
-```python
-# tb/test_vit_block.py
-import cocotb
-from cocotb.triggers import RisingEdge
-
-@cocotb.test()
-async def test_vit_block_basic(dut):
-    """Test basic forward pass through ViT block"""
-    # Reset
-    dut.rst_n.value = 0
-    await RisingEdge(dut.clk)
-    dut.rst_n.value = 1
-    
-    # Apply test vector
-    dut.activation_in.value = test_input
-    dut.valid_in.value = 1
-    
-    # Wait for result
-    while not dut.valid_out.value:
-        await RisingEdge(dut.clk)
-    
-    # Check against PyTorch reference
-    assert_close(dut.activation_out.value, expected_output)
-```
-
-### Integration Tests
-
-1. Vision encoder end-to-end
-2. Language model end-to-end
-3. Full pipeline with test images
-
-### Golden Model Comparison
-
-```python
-# Compare RTL output against PyTorch reference
-def compare_with_golden(rtl_output, pytorch_output, tolerance=0.01):
-    diff = abs(rtl_output - pytorch_output)
-    assert diff < tolerance, f"Mismatch: {diff}"
-```
+1. **Ternary Weights**: Weights quantized to {-1, 0, +1} eliminate multipliers
+2. **Sequential Block Sharing**: Single transformer block reused across layers to save area
+3. **KV Cache**: Language model maintains key-value cache for autoregressive generation
+4. **Piece-wise Linear Activations**: GELU/SiLU approximated with linear segments
+5. **Newton-Raphson**: Inverse sqrt for normalization using iterative approximation
 
 ## Synthesis Notes
 
-### Critical Paths
-
-1. **Attention score computation** - O(n²) in sequence length
-2. **Softmax** - Exponential approximation
-3. **Large fan-out** - Embedding lookups
-
-### Area Optimization
-
-- Share multipliers across time
-- Use approximate arithmetic where acceptable
-- Fold constants at synthesis time
-
-### Timing Targets
-
-| Block | Target Frequency |
-|-------|------------------|
-| Vision encoder | 200 MHz |
-| Language model | 150 MHz |
-| PCIe interface | 250 MHz |
-| Top-level | 100 MHz (conservative) |
+Target: SkyWater SKY130 (130nm)
+- Die size: ~800mm²
+- Clock: 100-200 MHz
+- Power: 25W total
