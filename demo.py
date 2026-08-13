@@ -704,63 +704,35 @@ def _create_sample_image() -> str:
     """Create a simple sample image for testing."""
     try:
         from PIL import Image, ImageDraw
-    except ImportError:
-        # Fall back to numpy-only image
-        img_data = np.random.randint(100, 200, (384, 384, 3), dtype=np.uint8)
-        # Add some colored rectangles
-        img_data[50:150, 50:150] = [255, 100, 100]  # Red square
-        img_data[200:300, 100:250] = [100, 255, 100]  # Green rectangle
-        img_data[100:200, 250:350] = [100, 100, 255]  # Blue square
+        # Create a more interesting test image with PIL
+        img = Image.new('RGB', (384, 384), color=(240, 240, 245))
+        draw = ImageDraw.Draw(img)
+        
+        # Draw some shapes
+        draw.rectangle([30, 30, 150, 150], fill=(255, 100, 100), outline=(200, 50, 50))
+        draw.ellipse([180, 50, 350, 180], fill=(100, 200, 100), outline=(50, 150, 50))
+        draw.polygon([(100, 200), (200, 350), (50, 300)], fill=(100, 100, 255))
+        draw.rectangle([220, 220, 360, 360], fill=(255, 200, 100), outline=(200, 150, 50))
         
         path = "/tmp/silens_sample.png"
-        # Save using raw method
-        import struct
-        import zlib
-        
-        def write_png(filename, pixels):
-            def make_chunk(chunk_type, data):
-                chunk_len = len(data)
-                chunk = chunk_type + data
-                crc = zlib.crc32(chunk) & 0xffffffff
-                return struct.pack('>I', chunk_len) + chunk + struct.pack('>I', crc)
-            
-            h, w = pixels.shape[:2]
-            raw_data = b''
-            for row in pixels:
-                raw_data += b'\x00' + row.tobytes()
-            
-            with open(filename, 'wb') as f:
-                f.write(b'\x89PNG\r\n\x1a\n')
-                f.write(make_chunk(b'IHDR', struct.pack('>IIBBBBB', w, h, 8, 2, 0, 0, 0)))
-                f.write(make_chunk(b'IDAT', zlib.compress(raw_data)))
-                f.write(make_chunk(b'IEND', b''))
-        
-        write_png(path, img_data)
+        img.save(path)
         return path
-    
-    # Create a more interesting test image with PIL
-    img = Image.new('RGB', (384, 384), color=(240, 240, 245))
-    draw = ImageDraw.Draw(img)
-    
-    # Draw some shapes
-    draw.rectangle([30, 30, 150, 150], fill=(255, 100, 100), outline=(200, 50, 50))
-    draw.ellipse([180, 50, 350, 180], fill=(100, 200, 100), outline=(50, 150, 50))
-    draw.polygon([(100, 200), (200, 350), (50, 300)], fill=(100, 100, 255))
-    draw.rectangle([220, 220, 360, 360], fill=(255, 200, 100), outline=(200, 150, 50))
-    
-    # Add some lines
-    for i in range(0, 384, 40):
-        draw.line([(i, 0), (i, 384)], fill=(220, 220, 220), width=1)
-        draw.line([(0, i), (384, i)], fill=(220, 220, 220), width=1)
-    
-    path = "/tmp/silens_sample.png"
-    img.save(path)
-    return path
+    except ImportError:
+        # Fall back to numpy-only gradient image
+        img_size = 384
+        x = np.linspace(0, 1, img_size)
+        y = np.linspace(0, 1, img_size)
+        xv, yv = np.meshgrid(x, y)
+        img_data = (np.stack([xv, yv, (xv + yv) / 2], axis=-1) * 255).astype(np.uint8)
+        
+        path = "/tmp/silens_sample.npy"
+        np.save(path, img_data)
+        return path
 
 
 def _demo_end_to_end_simulated():
-    """Fallback simulated demo when model backend is not available."""
-    print_info("Running SIMULATED demo (model not loaded)")
+    """Fallback simulated demo when RTL simulation is not available."""
+    print_info("Running SIMULATED demo (no RTL simulator available)")
     print()
     
     print_section("Pipeline Stages (Simulated)")
@@ -768,11 +740,11 @@ def _demo_end_to_end_simulated():
     stages = [
         ("1. Image Loading", "Loading 384x384 RGB image", 0.2),
         ("2. Patch Embedding", "Extracting 576 patches (16x16)", 0.3),
-        ("3. Vision Encoding", "12 ViT blocks, 768-dim", 0.8),
-        ("4. Multimodal Projection", "768-dim → 576-dim", 0.2),
+        ("3. Vision Encoding", "12 ViT blocks, 768-dim, ternary weights", 0.8),
+        ("4. Multimodal Projection", "768-dim → 576-dim linear projection", 0.2),
         ("5. Token Embedding", "Encoding text prompt", 0.1),
-        ("6. LLM Prefill", "30 layers, 576-dim", 0.6),
-        ("7. Autoregressive Decode", "Generating response", 1.5),
+        ("6. LLM Prefill", "30 layers, 576-dim, KV cache fill", 0.6),
+        ("7. Autoregressive Decode", "Generating tokens one by one", 1.5),
     ]
     
     total_time = 0
@@ -782,23 +754,35 @@ def _demo_end_to_end_simulated():
         animate_progress("    Processing", duration=duration)
         total_time += duration
     
-    print_section("Generated Response (Simulated)")
+    print_section("Simulated Output")
     
-    response = """The image shows a cozy living room with a 
-comfortable sofa, wooden coffee table, and large 
-windows letting in natural light. A cat is curled 
-up sleeping on a soft blanket."""
+    # Simulate cycle counts
+    sim_vision_cycles = 200_000
+    sim_prefill_cycles = 150_000
+    sim_decode_cycles = 500_000
+    sim_total_cycles = sim_vision_cycles + sim_prefill_cycles + sim_decode_cycles
     
-    print(f"\n  {Colors.GREEN}Prompt:{Colors.END} Describe what you see in this image.")
-    print(f"\n  {Colors.YELLOW}[SIMULATED] Response:{Colors.END}")
+    print_metric("Total Cycles", f"{sim_total_cycles:,}", "(simulated)")
+    print_metric("Vision Encoding", f"{sim_vision_cycles:,}", "cycles")
+    print_metric("LLM Prefill", f"{sim_prefill_cycles:,}", "cycles")
+    print_metric("Token Generation", f"{sim_decode_cycles:,}", "cycles")
+    print()
     
-    for word in response.split():
-        print(word, end=" ", flush=True)
-        time.sleep(0.05)
-    print("\n")
+    # Timing at 100 MHz
+    print_metric("Total Time @ 100MHz", f"{sim_total_cycles / 100_000:.2f}", "ms")
+    print_metric("Tokens/Second", "68", "(estimated)")
     
-    print_section("To run with REAL model inference:")
-    print(f"  {Colors.CYAN}pip install torch transformers pillow{Colors.END}")
+    print_section("To run REAL RTL simulation:")
+    
+    print("  1. Install a Verilog simulator:")
+    print(f"     {Colors.CYAN}brew install icarus-verilog{Colors.END}  (macOS)")
+    print(f"     {Colors.CYAN}apt install iverilog{Colors.END}         (Ubuntu)")
+    print()
+    print("  2. Install cocotb:")
+    print(f"     {Colors.CYAN}pip install cocotb{Colors.END}")
+    print()
+    print("  3. Run simulation directly:")
+    print(f"     {Colors.CYAN}cd rtl/tb && make test-e2e-inference{Colors.END}")
     print()
     
     print_success("Simulated demo complete!")
