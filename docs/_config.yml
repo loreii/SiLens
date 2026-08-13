@@ -37,6 +37,9 @@ exclude:
   - Gemfile
   - Gemfile.lock
   - vendor
+  - architecture/
+  - business/
+  - kickstarter/
 
 # SEO
 author: SiLens Technologies

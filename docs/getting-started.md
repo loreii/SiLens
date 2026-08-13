@@ -1,6 +1,7 @@
 ---
 layout: default
 title: Getting Started
+permalink: /getting-started/
 ---
 
 <section class="page-header-section">
@@ -31,13 +32,13 @@ python demo.py
 The demo includes:
 
 | Demo | Description |
-|------|-------------|
-| **Ternary Quantization** | Convert FP32 weights to 2-bit ternary (16× compression) |
-| **Hardware Simulation** | Interact with simulated SiLens accelerator |
-| **Performance Profiling** | Detailed timing and throughput analysis |
-| **Multi-Device Inference** | Distributed batch processing |
-| **Sparse Attention** | Attention pattern optimization |
-| **End-to-End Pipeline** | Complete inference demonstration |
+|:-----|:------------|
+| Ternary Quantization | Convert FP32 weights to 2-bit ternary (16× compression) |
+| Hardware Simulation | Interact with simulated SiLens accelerator |
+| Performance Profiling | Detailed timing and throughput analysis |
+| Multi-Device Inference | Distributed batch processing |
+| Sparse Attention | Attention pattern optimization |
+| End-to-End Pipeline | Complete inference demonstration |
 
 ---
 
@@ -161,7 +162,7 @@ python model/conversion/quantize_ternary.py \
 With default settings (α=0.7, per_tensor):
 
 | Metric | Original | Quantized | Change |
-|--------|----------|-----------|--------|
+|:-------|:---------|:----------|:-------|
 | Memory | 1024 MB | 64 MB | **16× smaller** |
 | VQA Accuracy | ~71% | ~67% | ~4% drop |
 | Perplexity | ~15 | ~17 | ~13% increase |
@@ -208,7 +209,7 @@ SiLens/
 <div class="feature-icon">🤝</div>
 <h3>Contributing</h3>
 <p>Join the community and help build SiLens.</p>
-<a href="https://github.com/loreii/SiLens/blob/main/CONTRIBUTING.md">Contribute →</a>
+<a href="https://github.com/loreii/SiLens/blob/main/CONTRIBUTING.md" target="_blank">Contribute →</a>
 </div>
 </div>
 

@@ -898,3 +898,131 @@ li::marker {
     width: 100%;
   }
 }
+
+
+/* ========================================
+   Table Wrapper for proper rendering
+   ======================================== */
+.table-wrapper {
+  overflow-x: auto;
+  margin: var(--spacing-lg) 0;
+}
+
+.table-wrapper table {
+  margin: 0;
+}
+
+/* ========================================
+   Comparison Boxes (Dark Section)
+   ======================================== */
+.comparison-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--spacing-xl);
+  margin-top: var(--spacing-xl);
+}
+
+.comparison-box {
+  background: rgba(255, 255, 255, 0.05);
+  padding: var(--spacing-xl);
+  border-radius: var(--radius-xl);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.comparison-box.highlight {
+  background: rgba(99, 102, 241, 0.15);
+  border-color: rgba(99, 102, 241, 0.4);
+}
+
+.comparison-box h3 {
+  color: white;
+  margin-top: 0;
+  margin-bottom: var(--spacing-md);
+  font-size: 1.25rem;
+}
+
+.comparison-box p {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.comparison-box pre {
+  background: rgba(0, 0, 0, 0.3);
+  font-size: 0.8rem;
+}
+
+/* Dark section table overrides */
+.section-dark table {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.section-dark th {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.section-dark td {
+  border-color: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.section-dark tbody tr:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* Feature card blockquotes */
+.feature-card blockquote {
+  margin: var(--spacing-sm) 0 0;
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-size: 0.875rem;
+  background: var(--color-light-2);
+}
+
+/* ========================================
+   Content Wrapper Improvements
+   ======================================== */
+.content-wrapper {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: var(--spacing-3xl) var(--spacing-lg);
+}
+
+.content-wrapper h1 {
+  font-size: 2.25rem;
+  margin-bottom: var(--spacing-lg);
+}
+
+.content-wrapper h2 {
+  margin-top: var(--spacing-3xl);
+}
+
+.content-wrapper h2:first-of-type {
+  margin-top: 0;
+}
+
+/* Ensure tables render in content wrapper */
+.content-wrapper table {
+  margin: var(--spacing-lg) 0;
+}
+
+/* ========================================
+   Page Header Section
+   ======================================== */
+.page-header-section {
+  background: var(--gradient-hero);
+  padding: 5rem var(--spacing-lg) 3rem;
+  text-align: center;
+  color: white;
+}
+
+.page-header-section h1 {
+  color: white;
+  font-size: 2.5rem;
+  margin-bottom: var(--spacing-md);
+}
+
+.page-header-section p {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 1.125rem;
+  max-width: 600px;
+  margin: 0 auto;
+}

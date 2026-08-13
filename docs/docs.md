@@ -4,34 +4,48 @@ title: Documentation
 permalink: /docs/
 ---
 
-# Documentation
+<section class="page-header-section">
+  <h1>Documentation</h1>
+  <p>Technical guides for working with SiLens hardware and software.</p>
+</section>
 
-Welcome to the SiLens technical documentation. This section provides comprehensive guides for working with SiLens hardware and software.
-
----
+<div class="content-wrapper">
 
 ## Core Documentation
 
-### Architecture
+<div class="features-grid">
+<div class="feature-card">
+<div class="feature-icon">📐</div>
+<h3>Architecture Overview</h3>
+<p>System architecture, data flow, and hardware specifications.</p>
+<a href="{{ site.baseurl }}/architecture/">Read more →</a>
+</div>
 
-- [**Architecture Overview**]({{ site.baseurl }}/architecture/) - System architecture, data flow, and hardware specifications
-- [**PCIe Multimodal Accelerator Design**]({{ site.baseurl }}/architecture/PCIE_MULTIMODAL_LLM_ACCELERATOR/) - Detailed accelerator design document
+<div class="feature-card">
+<div class="feature-icon">🚀</div>
+<h3>Getting Started</h3>
+<p>Installation, setup, and your first steps with SiLens.</p>
+<a href="{{ site.baseurl }}/getting-started/">Read more →</a>
+</div>
 
-### Getting Started
-
-- [**Quick Start Guide**]({{ site.baseurl }}/getting-started/) - Installation, setup, and first steps
-- [**Model Quantization Guide**](https://github.com/loreii/SiLens/blob/main/model/QUANTIZATION_GUIDE.md) - Complete guide to ternary quantization
+<div class="feature-card">
+<div class="feature-icon">📖</div>
+<h3>Quantization Guide</h3>
+<p>Complete guide to ternary quantization for SiLens.</p>
+<a href="https://github.com/loreii/SiLens/blob/main/model/QUANTIZATION_GUIDE.md" target="_blank">Read more →</a>
+</div>
+</div>
 
 ---
 
 ## Model Conversion Tools
 
-The `model/conversion/` directory contains comprehensive tools for quantizing SmolVLM-256M.
+The `model/conversion/` directory contains tools for quantizing SmolVLM-256M.
 
 ### Quantization Pipeline
 
 | Tool | Purpose |
-|------|---------|
+|:-----|:--------|
 | `analyze_model.py` | Architecture analysis, weight statistics |
 | `extract_weights.py` | Extract and organize weights |
 | `quantize_ternary.py` | Ternary quantization with multiple modes |
@@ -42,7 +56,7 @@ The `model/conversion/` directory contains comprehensive tools for quantizing Sm
 ### Validation Tools
 
 | Tool | Purpose |
-|------|---------|
+|:-----|:--------|
 | `validate_quantization.py` | Layer-by-layer quality validation |
 | `benchmark_suite.py` | VQA, TextVQA, captioning benchmarks |
 | `perplexity_test.py` | Language model perplexity measurement |
@@ -52,7 +66,7 @@ The `model/conversion/` directory contains comprehensive tools for quantizing Sm
 ### Analysis Tools
 
 | Tool | Purpose |
-|------|---------|
+|:-----|:--------|
 | `weight_visualizer.py` | Distribution plots with matplotlib |
 | `sparsity_analyzer.py` | Sparsity patterns and structured sparsity |
 | `outlier_detector.py` | Identify and handle outlier weights |
@@ -63,22 +77,22 @@ The `model/conversion/` directory contains comprehensive tools for quantizing Sm
 
 ### FPGA Prototyping
 
-The `fpga/` directory contains prototype files for major FPGA vendors:
+The `fpga/` directory contains prototype files:
 
-#### Xilinx
-- `silens_fpga_wrapper.v` - Top-level FPGA wrapper
-- `silens_artix7.xdc` - Artix-7 constraints
-- `silens_kintex7.xdc` - Kintex-7 constraints
-- `synth_vivado.tcl` - Vivado synthesis script
+**Xilinx:**
+- `silens_fpga_wrapper.v` — Top-level FPGA wrapper
+- `silens_artix7.xdc` — Artix-7 constraints
+- `silens_kintex7.xdc` — Kintex-7 constraints
+- `synth_vivado.tcl` — Vivado synthesis script
 
-#### Intel
-- `silens_fpga_wrapper_intel.v` - Intel FPGA wrapper
-- `silens_arria10.sdc` - Arria 10 constraints
-- `silens_cyclone10.sdc` - Cyclone 10 constraints
+**Intel:**
+- `silens_fpga_wrapper_intel.v` — Intel FPGA wrapper
+- `silens_arria10.sdc` — Arria 10 constraints
+- `silens_cyclone10.sdc` — Cyclone 10 constraints
 
 ### PCB Design
 
-PCB design files are located in the `pcb/` directory (coming soon):
+PCB design files in `pcb/` (coming soon):
 - Schematics
 - Layout files
 - Bill of Materials (BOM)
@@ -90,22 +104,16 @@ PCB design files are located in the `pcb/` directory (coming soon):
 
 ### Linux Kernel Driver
 
-The `drivers/` directory contains the Linux kernel driver:
-
-- `silens_drv.c` - Main driver source
-- `silens_ioctl.h` - IOCTL definitions
-- `Makefile` - Build instructions
-- `README.md` - Driver documentation
+The `drivers/` directory contains:
+- `silens_drv.c` — Main driver source
+- `silens_ioctl.h` — IOCTL definitions
+- `Makefile` — Build instructions
 
 ### Python SDK
-
-Install the Python SDK:
 
 ```bash
 pip install silens
 ```
-
-Basic usage:
 
 ```python
 import silens
@@ -128,12 +136,10 @@ print(answer)
 
 ### Firmware
 
-The `firmware/` directory contains the embedded firmware:
-
-- `main.c` - Main firmware application
-- `startup.S` - Startup assembly code
-- `linker.ld` - Linker script
-- `Makefile` - Build instructions
+The `firmware/` directory contains:
+- `main.c` — Main firmware application
+- `startup.S` — Startup assembly code
+- `linker.ld` — Linker script
 
 ---
 
@@ -169,7 +175,7 @@ class silens.DeviceInfo:
 ### The ASIC
 
 | Specification | Value |
-|---------------|-------|
+|:--------------|:------|
 | Model | SmolVLM-256M |
 | Total Parameters | 246 million |
 | Vision Encoder | SigLIP-B/16 (93M parameters) |
@@ -182,7 +188,7 @@ class silens.DeviceInfo:
 ### The Card
 
 | Specification | Value |
-|---------------|-------|
+|:--------------|:------|
 | Interface | PCIe 3.0 x4 |
 | Form Factor | Half-height, half-length |
 | Dimensions | 168mm × 69mm |
@@ -193,44 +199,38 @@ class silens.DeviceInfo:
 ### Software Support
 
 | Platform | Status |
-|----------|--------|
+|:---------|:-------|
 | Linux | Full support (kernel driver + Python API) |
 | Windows | Community support planned |
 | macOS | Not supported (no PCIe) |
 | Docker | Official container images |
-| Python API | `pip install silens` |
-| C/C++ API | Native library included |
-| ONNX Runtime | Integration planned |
 
 ---
 
 ## Contributing
 
-We welcome contributions! See our [Contributing Guide](https://github.com/loreii/SiLens/blob/main/CONTRIBUTING.md) for details.
+We welcome contributions! See our [Contributing Guide](https://github.com/loreii/SiLens/blob/main/CONTRIBUTING.md).
 
 ### Areas Needing Help
 
-- [ ] RTL design for transformer blocks
-- [x] Weight quantization and validation ✓
-- [ ] FPGA prototyping
-- [ ] PCB design review
-- [ ] Driver development
-- [ ] Documentation
+- RTL design for transformer blocks
+- FPGA prototyping
+- PCB design review
+- Driver development
+- Documentation
 
 ---
 
 ## License
 
-This project is licensed under the Apache License 2.0 — see [LICENSE](https://github.com/loreii/SiLens/blob/main/LICENSE) for details.
+Apache License 2.0 — see [LICENSE](https://github.com/loreii/SiLens/blob/main/LICENSE).
 
 ### Third-Party Licenses
 
 | Component | License | Source |
-|-----------|---------|--------|
+|:----------|:--------|:-------|
 | SmolVLM-256M | Apache 2.0 | Hugging Face |
 | SkyWater SKY130 | Apache 2.0 | Google/SkyWater |
 | OpenLane | Apache 2.0 | Efabless |
 
----
-
-[← Back to Home]({{ site.baseurl }}/)
+</div>
