@@ -3,175 +3,257 @@ layout: default
 title: Home
 ---
 
-# SiLens™
-
-## Open-Source Hardwired Vision-Language AI Accelerator
-
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![SkyWater PDK](https://img.shields.io/badge/PDK-SkyWater%20SKY130-orange.svg)](https://github.com/google/skywater-pdk)
-[![Model](https://img.shields.io/badge/Model-SmolVLM--256M-green.svg)](https://huggingface.co/HuggingFaceTB/SmolVLM-256M-Instruct)
-
----
-
-## 100× Faster Than a GPU. Half the Price. 25 Watts.
-
-SiLens is a PCIe card that runs vision + language AI at **200 images/second** with **<5ms latency** — using just **25 watts**.
-
-We achieve this by doing something no one else has done: **etching the AI model weights directly into silicon.** No memory. No bottlenecks. Just raw, instant inference.
-
-<div class="features">
-  <div class="feature">
-    🚀 <strong>100× faster</strong> than a $300 GPU running the same model
+<section class="hero">
+  <div class="hero-content">
+    <div class="hero-badge">
+      <span class="hero-badge-dot"></span>
+      Open Source • Apache 2.0 License
+    </div>
+    
+    <h1>The World's First<br><span>Hardwired AI Accelerator</span></h1>
+    
+    <p class="hero-subtitle">
+      SiLens etches neural network weights directly into silicon. No memory bottlenecks. 
+      No GPUs. Just 200+ images per second at under 5ms latency—in 25 watts.
+    </p>
+    
+    <div class="hero-stats">
+      <div class="hero-stat">
+        <div class="hero-stat-value">100×</div>
+        <div class="hero-stat-label">Faster than GPU</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-value">25W</div>
+        <div class="hero-stat-label">Power Draw</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-value">&lt;5ms</div>
+        <div class="hero-stat-label">Latency</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-value">$149</div>
+        <div class="hero-stat-label">Starting Price</div>
+      </div>
+    </div>
+    
+    <div class="hero-buttons">
+      <a href="{{ site.baseurl }}/getting-started/" class="btn btn-primary">Get Started</a>
+      <a href="https://github.com/loreii/SiLens" class="btn btn-secondary">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+          <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+        </svg>
+        View on GitHub
+      </a>
+    </div>
   </div>
-  <div class="feature">
-    ⚡ <strong>25W power</strong> vs. 115W for a graphics card
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="alert alert-warning">
+      <span class="alert-icon">⚠️</span>
+      <div>
+        <strong>Early Development</strong> — SiLens is in the architectural design phase. Hardware is not yet available. 
+        <a href="{{ site.baseurl }}/kickstarter/">Support us on Kickstarter</a> to bring this to production.
+      </div>
+    </div>
   </div>
-  <div class="feature">
-    💰 <strong>$149-249</strong> — cheaper than the GPU it replaces
+</section>
+
+<section class="section section-light">
+  <div class="container">
+    <div class="section-header">
+      <h2>Why SiLens?</h2>
+      <p>Traditional AI accelerators are bottlenecked by memory bandwidth. SiLens eliminates this entirely.</p>
+    </div>
+    
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">🚀</div>
+        <h3>100× Faster</h3>
+        <p>Process 200+ images per second with sub-5ms latency. No GPU comes close at this price point.</p>
+      </div>
+      
+      <div class="feature-card">
+        <div class="feature-icon">⚡</div>
+        <h3>Ultra Low Power</h3>
+        <p>Just 25W total power draw. Run AI inference without melting your power budget or your cooling system.</p>
+      </div>
+      
+      <div class="feature-card">
+        <div class="feature-icon">🔓</div>
+        <h3>Fully Open Source</h3>
+        <p>RTL, PCB designs, drivers, SDK—everything is Apache 2.0 licensed. Verify, modify, and improve.</p>
+      </div>
+      
+      <div class="feature-card">
+        <div class="feature-icon">🤖</div>
+        <h3>Vision + Language</h3>
+        <p>SmolVLM-256M understands images AND text. Describe photos, answer questions, read documents.</p>
+      </div>
+      
+      <div class="feature-card">
+        <div class="feature-icon">💰</div>
+        <h3>Affordable</h3>
+        <p>Starting at $149—cheaper than the GPUs it outperforms by orders of magnitude.</p>
+      </div>
+      
+      <div class="feature-card">
+        <div class="feature-icon">🔌</div>
+        <h3>Plug & Play</h3>
+        <p>Standard PCIe 3.0 x4 card. No external power needed. Works in any server or workstation.</p>
+      </div>
+    </div>
   </div>
-  <div class="feature">
-    🔓 <strong>Fully open-source</strong> — Apache 2.0 from silicon to software
+</section>
+
+
+<section class="section">
+  <div class="container">
+    <div class="section-header">
+      <h2>The Problem with AI Hardware</h2>
+      <p>Your options today are expensive, power-hungry, or severely limited.</p>
+    </div>
+
+| Option | Price | Power | Latency | The Catch |
+|--------|-------|-------|---------|-----------|
+| **Cloud API** | $0.01/img | N/A | 500ms+ | Privacy concerns, ongoing costs, requires internet |
+| **Consumer GPU** | $300+ | 115W | 300ms+ | Overkill for inference, massive power draw |
+| **Edge TPU** | $75-150 | 2-4W | 30ms | Vision only—no language understanding |
+| **Enterprise AI** | $10K+ | 300W+ | <10ms | Absurdly expensive for most use cases |
+| **SiLens** | **$149** | **25W** | **<5ms** | ✅ Affordable, efficient, multimodal |
+
   </div>
-  <div class="feature">
-    🤖 <strong>Multimodal AI</strong> — sees images AND understands language
-  </div>
-</div>
+</section>
 
----
+<section class="section section-dark">
+  <div class="container">
+    <div class="section-header">
+      <h2>How It Works</h2>
+      <p>We do something no one else has done: bake the AI model directly into silicon.</p>
+    </div>
+    
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; margin-top: 2rem;">
+<div style="background: rgba(255,255,255,0.05); padding: 2rem; border-radius: 1rem; border: 1px solid rgba(255,255,255,0.1);">
 
-## The Problem: AI Hardware is Broken
-
-You want to run AI locally. Maybe you're building a smart camera system, processing documents, or just want to chat with images without sending them to the cloud.
-
-Your options today:
-
-| Option | Price | Power | Latency | Problem |
-|--------|-------|-------|---------|---------|
-| **Cloud API** | $0.01/image | N/A | 500ms+ | Privacy, ongoing costs, internet required |
-| **Consumer GPU** | $300+ | 115W | 300ms+ | Overkill, power-hungry, needs a PC |
-| **Edge TPU** | $75-150 | 2-4W | 30ms | Vision only, no language understanding |
-| **Enterprise AI** | $10,000+ | 300W+ | <10ms | Absurdly expensive |
-
-**There's nothing in between.** Nothing that's affordable, efficient, AND capable of understanding both images and text.
-
-**Until now.**
-
----
-
-## The Solution: AI Baked Into Silicon
-
-### How Traditional AI Works
+### Traditional AI Hardware
 
 ```
-[Image] → [Load weights from memory] → [Compute] → [Answer]
+[Image] → [Load weights from RAM] → [Compute] → [Answer]
                     ↑
-            This is the bottleneck
+          Memory bandwidth bottleneck
+          (This is why GPUs are slow)
 ```
 
-### How SiLens Works
+Weights stored in memory. Each inference requires loading billions of values through a narrow pipe.
+
+</div>
+<div style="background: rgba(99,102,241,0.1); padding: 2rem; border-radius: 1rem; border: 1px solid rgba(99,102,241,0.3);">
+
+### SiLens Approach
 
 ```
 [Image] → [Weights ARE the circuit] → [Answer]
                     ↑
-            No memory access needed
+          No memory access needed
+          (Computation at wire speed)
 ```
 
-We encode each model weight as a physical wire connection:
-- **Weight = +1** → Wire to power (VDD)
-- **Weight = -1** → Wire to ground (GND)
+**Weight = +1** → Wire to VDD  
+**Weight = -1** → Wire to GND  
+**Weight = 0** → No connection
 
-**The model IS the chip.** Computation happens at the speed of electricity moving through wires — nanoseconds, not milliseconds.
+</div>
+</div>
 
----
+  </div>
+</section>
 
-## What Can SiLens Do?
+<section class="section">
+  <div class="container">
+    <div class="section-header">
+      <h2>What Can SiLens Do?</h2>
+      <p>Powered by SmolVLM-256M—a 246M parameter vision-language model.</p>
+    </div>
+    
+<div class="features-grid">
+<div class="feature-card">
+<div class="feature-icon">📸</div>
+<h3>Describe Images</h3>
 
-SiLens runs **SmolVLM-256M**, a state-of-the-art vision-language model with 246 million parameters.
-
-### 📸 Describe Images
 *"What's in this photo?"*
+
 > "A golden retriever playing fetch on a sandy beach at sunset. The dog is mid-leap, catching a red frisbee."
 
-### ❓ Answer Questions About Images
-*"How many people are in this room?"*
-> "There are 7 people visible — 4 seated at the conference table and 3 standing near the whiteboard."
+</div>
+<div class="feature-card">
+<div class="feature-icon">❓</div>
+<h3>Visual Q&A</h3>
 
-### 📄 Read and Understand Documents
+*"How many people are in this room?"*
+
+> "There are 7 people visible—4 seated at the conference table and 3 standing near the whiteboard."
+
+</div>
+<div class="feature-card">
+<div class="feature-icon">📄</div>
+<h3>Document Understanding</h3>
+
 *"Extract the total from this receipt"*
+
 > "The total is $47.83, including $3.42 tax."
 
-### 🔍 Compare Multiple Images
-*"What changed between these two photos?"*
-> "The red car in the parking lot has moved, and a person with a blue umbrella has appeared near the entrance."
+</div>
+</div>
 
-### ⚡ Process Video in Real-Time
-At 200+ images/second, SiLens can analyze live video feeds for security, manufacturing QC, traffic monitoring, and retail analytics.
+  </div>
+</section>
 
----
+<section class="section section-light">
+  <div class="container">
+    <div class="section-header">
+      <h2>Technical Specifications</h2>
+    </div>
 
-## Performance Comparison
+| Specification | Value |
+|---------------|-------|
+| **Model** | SmolVLM-256M (246M parameters) |
+| **Vision Encoder** | SigLIP-B/16 (93M params) |
+| **Language Model** | SmolLM2-135M (135M params) |
+| **Process Node** | SkyWater SKY130 (130nm) |
+| **Die Size** | ~800mm² |
+| **Interface** | PCIe 3.0 x4 |
+| **Power** | 25W TDP (slot-powered) |
+| **Latency** | <5ms single image |
+| **Throughput** | 200+ images/sec |
 
-### SiLens vs. $300 GPU (RTX 4060)
+<div style="text-align: center; margin-top: 2rem;">
+<a href="{{ site.baseurl }}/architecture/" class="btn btn-outline">View Full Architecture →</a>
+</div>
 
-| Metric | RTX 4060 | **SiLens** | **Improvement** |
-|--------|----------|------------|-----------------|
-| Price | $299 | $149-249 | **20-50% cheaper** |
-| Single-image latency | 300-1000ms | **<5ms** | **60-200× faster** |
-| Throughput (single) | 1-3 img/sec | **200+ img/sec** | **100× faster** |
-| Throughput (batch) | 5-15 img/sec | **1000+ img/sec** | **70× faster** |
-| Power consumption | 115W | **25W** | **4.6× efficient** |
-| Form factor | Full desktop GPU | **Half-height PCIe** | Fits anywhere |
+  </div>
+</section>
 
----
-
-## Project Status
+<section class="section">
+  <div class="container">
+    <div class="section-header">
+      <h2>Project Status</h2>
+    </div>
 
 | Component | Status |
 |-----------|--------|
-| Architecture specification | 🟡 In progress |
-| RTL design (Verilog) | 🔴 Not started |
-| FPGA prototype | 🔴 Not started |
-| Physical design | 🔴 Not started |
-| PCB design | 🔴 Not started |
-| Software/drivers | 🔴 Not started |
+| Architecture specification | 🟡 In Progress |
+| Model quantization tools | ✅ Complete |
+| RTL design (Verilog) | 🔴 Not Started |
+| FPGA prototype | 🔴 Not Started |
+| Physical design | 🔴 Not Started |
+| PCB design | 🔴 Not Started |
+| Linux drivers | 🔴 Not Started |
 
-> **⚠️ EARLY DEVELOPMENT** — This project is in the architectural design phase. Hardware is not yet available.
+<div style="text-align: center; margin-top: 2rem;">
+<a href="{{ site.baseurl }}/kickstarter/" class="btn btn-primary">Support on Kickstarter →</a>
+<a href="https://github.com/loreii/SiLens" class="btn btn-outline">Contribute on GitHub →</a>
+</div>
 
----
-
-## Quick Links
-
-- [📐 Architecture Overview]({{ site.baseurl }}/architecture/)
-- [🚀 Getting Started]({{ site.baseurl }}/getting-started/)
-- [📖 Documentation]({{ site.baseurl }}/docs/)
-- [❓ FAQ]({{ site.baseurl }}/faq/)
-- [💚 Support on Kickstarter]({{ site.baseurl }}/kickstarter/)
-- [🐙 GitHub Repository](https://github.com/loreii/SiLens)
-
----
-
-## Why Open Source?
-
-We believe AI hardware should be as open as AI software.
-
-**Everything about SiLens is open:**
-- RTL design files (Verilog)
-- PCB schematics and layout
-- BOM and assembly instructions
-- Linux kernel driver
-- Python SDK
-- Documentation
-
-**License:** Apache 2.0 — use it for anything, including commercial projects.
-
----
-
-## Contact
-
-- **GitHub:** [github.com/loreii/SiLens](https://github.com/loreii/SiLens)
-- **Discord:** Coming soon
-- **Email:** hello@silens.ai
-
----
-
-*SiLens is an independent project and is not affiliated with Hugging Face, Google, SkyWater Technology, or any FPGA vendor.*
+  </div>
+</section>

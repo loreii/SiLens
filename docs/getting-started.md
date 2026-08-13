@@ -1,21 +1,21 @@
 ---
 layout: default
 title: Getting Started
-permalink: /getting-started/
 ---
 
-# Getting Started with SiLens
+<section class="page-header-section">
+  <h1>Getting Started</h1>
+  <p>Set up your development environment and start exploring SiLens.</p>
+</section>
 
-## Prerequisites
+<div class="content-wrapper">
 
-Before you begin, ensure you have the following:
-
-- **Python 3.8+** with pip
-- **Git** for cloning the repository
-- **8GB+ RAM** recommended for model conversion tools
-- **NVIDIA GPU** (optional) for faster model analysis
-
----
+<div class="alert alert-info">
+  <span class="alert-icon">ℹ️</span>
+  <div>
+    <strong>Note:</strong> SiLens hardware is not yet available. These instructions help you work with the simulation and model conversion tools.
+  </div>
+</div>
 
 ## Quick Start: Interactive Demo
 
@@ -28,16 +28,27 @@ pip install numpy
 python demo.py
 ```
 
-The demo showcases:
+The demo includes:
 
 | Demo | Description |
 |------|-------------|
-| **1. Ternary Quantization** | Convert FP32 weights to 2-bit ternary (16x compression) |
-| **2. Hardware Simulation** | Interact with simulated SiLens accelerator |
-| **3. Performance Profiling** | Detailed timing and throughput analysis |
-| **4. Multi-Device Inference** | Distributed batch processing |
-| **5. Sparse Attention** | Attention pattern optimization for hardware |
-| **6. End-to-End Pipeline** | Complete inference demonstration |
+| **Ternary Quantization** | Convert FP32 weights to 2-bit ternary (16× compression) |
+| **Hardware Simulation** | Interact with simulated SiLens accelerator |
+| **Performance Profiling** | Detailed timing and throughput analysis |
+| **Multi-Device Inference** | Distributed batch processing |
+| **Sparse Attention** | Attention pattern optimization |
+| **End-to-End Pipeline** | Complete inference demonstration |
+
+---
+
+## Prerequisites
+
+Before you begin, ensure you have:
+
+- **Python 3.8+** with pip
+- **Git** for cloning the repository
+- **8GB+ RAM** recommended for model conversion
+- **NVIDIA GPU** (optional) for faster analysis
 
 ---
 
@@ -51,11 +62,11 @@ cd SiLens
 git submodule update --init --recursive
 ```
 
-### 2. Set Up Python Environment
+### 2. Create Python Environment
 
 ```bash
 python -m venv venv
-source venv/bin/activate  # or `venv\Scripts\activate` on Windows
+source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
@@ -83,23 +94,25 @@ model.save_pretrained('model/smolvlm-256m')
 
 ## Model Quantization Workflow
 
-The complete model conversion pipeline from FP32 to ternary weights:
+Convert the FP32 model to ternary weights for hardware implementation.
 
-### Step 1: Analyze Model Architecture
-
-```bash
-python model/conversion/analyze_model.py --model HuggingFaceTB/SmolVLM-256M-Instruct
-```
-
-### Step 2: Run Sensitivity Analysis
-
-Identify which layers are most sensitive to quantization:
+### Step 1: Analyze Model
 
 ```bash
-python model/conversion/sensitivity_analysis.py --model HuggingFaceTB/SmolVLM-256M-Instruct
+python model/conversion/analyze_model.py \
+    --model HuggingFaceTB/SmolVLM-256M-Instruct
 ```
 
-### Step 3: Quantize to Ternary Weights
+### Step 2: Sensitivity Analysis
+
+Identify layers most sensitive to quantization:
+
+```bash
+python model/conversion/sensitivity_analysis.py \
+    --model HuggingFaceTB/SmolVLM-256M-Instruct
+```
+
+### Step 3: Quantize to Ternary
 
 ```bash
 python model/conversion/quantize_ternary.py \
@@ -110,7 +123,7 @@ python model/conversion/quantize_ternary.py \
     --output ./model/weights/quantized
 ```
 
-### Step 4: Validate Quantization Quality
+### Step 4: Validate Quality
 
 ```bash
 python model/conversion/validate_quantization.py \
@@ -119,7 +132,7 @@ python model/conversion/validate_quantization.py \
     --detailed
 ```
 
-### Step 5: Run Accuracy Benchmarks
+### Step 5: Run Benchmarks
 
 ```bash
 python model/validation/benchmark_suite.py \
@@ -145,59 +158,14 @@ python model/conversion/quantize_ternary.py \
 
 ## Expected Results
 
-With default settings (α=0.7, per_tensor quantization):
+With default settings (α=0.7, per_tensor):
 
 | Metric | Original | Quantized | Change |
 |--------|----------|-----------|--------|
-| Memory | 1024 MB | 64 MB | **16× reduction** |
+| Memory | 1024 MB | 64 MB | **16× smaller** |
 | VQA Accuracy | ~71% | ~67% | ~4% drop |
 | Perplexity | ~15 | ~17 | ~13% increase |
-| Cosine Similarity | - | 0.92 | - |
-
----
-
-## Running Tests
-
-### RTL Simulation (when available)
-
-```bash
-make sim
-```
-
-### Python Tests
-
-```bash
-pytest tests/
-```
-
----
-
-## Dependencies
-
-### SkyWater SKY130 PDK
-
-The open-source process design kit for 130nm CMOS fabrication:
-
-```bash
-# Clone the PDK (large download, ~7GB)
-git clone https://github.com/google/skywater-pdk.git pdk/skywater-pdk
-
-# Or add as submodule
-git submodule add https://github.com/google/skywater-pdk.git pdk/skywater-pdk
-```
-
-**Documentation:** [skywater-pdk.readthedocs.io](https://skywater-pdk.readthedocs.io/)
-
-### OpenLane (Synthesis)
-
-RTL-to-GDSII flow using open-source tools:
-
-```bash
-# Install via Docker (recommended)
-docker pull efabless/openlane:latest
-```
-
-**Documentation:** [openlane.readthedocs.io](https://openlane.readthedocs.io/)
+| Cosine Similarity | — | 0.92 | — |
 
 ---
 
@@ -205,39 +173,43 @@ docker pull efabless/openlane:latest
 
 ```
 SiLens/
-├── README.md                 # Main readme
-├── LICENSE                   # Apache 2.0
-├── docs/                     # Documentation (this site)
-├── rtl/                      # Verilog/SystemVerilog source
-│   ├── vision_encoder/       # SigLIP-B/16 implementation
-│   ├── language_model/       # SmolLM2-135M implementation
-│   ├── projector/            # Multimodal projector
-│   ├── top/                  # Top-level integration
-│   └── tb/                   # Testbenches
-├── model/                    # Model files and conversion tools
-│   ├── weights/              # Quantized weights (gitignored)
-│   ├── conversion/           # PyTorch → Verilog tools
-│   ├── validation/           # Model accuracy validation
-│   └── analysis/             # Weight analysis tools
-├── pdk/                      # SkyWater PDK setup
-├── synthesis/                # OpenLane synthesis scripts
-├── pcb/                      # PCB design files
-├── firmware/                 # Card firmware
-├── drivers/                  # Linux kernel driver
-├── sdk/                      # Python SDK
-├── fpga/                     # FPGA prototype files
-└── tools/                    # Utility scripts
+├── model/
+│   ├── conversion/      # Quantization tools
+│   ├── validation/      # Accuracy benchmarks
+│   └── analysis/        # Weight visualization
+├── rtl/                 # Verilog source (coming soon)
+├── fpga/                # FPGA prototypes
+├── drivers/             # Linux kernel driver
+├── sdk/                 # Python SDK
+├── firmware/            # Card firmware
+└── docs/                # Documentation
 ```
 
 ---
 
 ## Next Steps
 
-- [📐 Architecture Overview]({{ site.baseurl }}/architecture/) - Understand the hardware design
-- [📖 Documentation]({{ site.baseurl }}/docs/) - Detailed technical documentation
-- [❓ FAQ]({{ site.baseurl }}/faq/) - Frequently asked questions
-- [🤝 Contributing](https://github.com/loreii/SiLens/blob/main/CONTRIBUTING.md) - How to contribute
+<div class="features-grid">
+<div class="feature-card">
+<div class="feature-icon">📐</div>
+<h3>Architecture</h3>
+<p>Understand the hardware design and data flow.</p>
+<a href="{{ site.baseurl }}/architecture/">Learn more →</a>
+</div>
 
----
+<div class="feature-card">
+<div class="feature-icon">📖</div>
+<h3>Documentation</h3>
+<p>Detailed API reference and tool documentation.</p>
+<a href="{{ site.baseurl }}/docs/">View docs →</a>
+</div>
 
-[← Back to Home]({{ site.baseurl }}/)
+<div class="feature-card">
+<div class="feature-icon">🤝</div>
+<h3>Contributing</h3>
+<p>Join the community and help build SiLens.</p>
+<a href="https://github.com/loreii/SiLens/blob/main/CONTRIBUTING.md">Contribute →</a>
+</div>
+</div>
+
+</div>

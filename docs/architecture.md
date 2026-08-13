@@ -1,16 +1,27 @@
 ---
 layout: default
 title: Architecture
-permalink: /architecture/
 ---
 
-# SiLens Architecture Overview
+<section class="page-header-section">
+  <h1>System Architecture</h1>
+  <p>A deep dive into how SiLens implements a vision-language model in hardwired silicon.</p>
+</section>
 
-## System Architecture
+<div class="content-wrapper">
+
+## Architecture Overview
+
+SiLens implements the complete SmolVLM-256M model as a single ASIC. The chip integrates:
+
+- **Vision Encoder** (SigLIP-B/16) — Processes images into visual tokens
+- **Multimodal Projector** — Maps vision space to language space  
+- **Language Model** (SmolLM2-135M) — Generates text responses
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                           SiLens ASIC (~800mm²)                             │
+│                                                                             │
 │  ┌───────────────────────────────────────────────────────────────────────┐ │
 │  │                    VISION ENCODER: SigLIP-B/16                        │ │
 │  │                         (93M parameters)                               │ │
@@ -47,19 +58,19 @@ permalink: /architecture/
 
 ## Model Components
 
-### 1. Vision Encoder (SigLIP-B/16)
+### Vision Encoder (SigLIP-B/16)
 
 | Parameter | Value |
 |-----------|-------|
 | Parameters | 93M |
-| Patch size | 16×16 |
-| Image size | 384×384 |
+| Patch size | 16×16 pixels |
+| Input size | 384×384 |
 | Hidden dim | 768 |
 | Layers | 12 |
-| Heads | 12 |
+| Attention heads | 12 |
 | Output tokens | 576 |
 
-### 2. Multimodal Projector
+### Multimodal Projector
 
 | Parameter | Value |
 |-----------|-------|
@@ -68,66 +79,71 @@ permalink: /architecture/
 | Output dim | 576 |
 | Type | Linear projection |
 
-### 3. Language Model (SmolLM2-135M)
+### Language Model (SmolLM2-135M)
 
 | Parameter | Value |
 |-----------|-------|
 | Parameters | 135M |
 | Hidden dim | 576 |
 | Layers | 30 |
-| Heads | 9 |
-| Vocabulary | 49,152 |
-| Context | 8,192 tokens |
+| Attention heads | 9 |
+| Vocabulary | 49,152 tokens |
+| Max context | 8,192 tokens |
 
 ---
 
 ## Hardwired Weight Encoding
 
-### Ternary Weights (-1, 0, +1)
+The key innovation in SiLens is encoding model weights as physical wire connections rather than storing them in memory.
 
-**Traditional (memory-based):**
+### Ternary Quantization
+
+SmolVLM-256M uses ternary weights: **{-1, 0, +1}**. In silicon:
+
+| Weight | Physical Implementation |
+|--------|------------------------|
+| **+1** | Metal trace to VDD (power) |
+| **-1** | Metal trace to GND (ground) |
+| **0** | No connection (implicit zero) |
+
+### Traditional vs Hardwired
+
+**Traditional approach (memory-based):**
 ```verilog
 wire [7:0] weight;        // 8-bit weight from SRAM
 wire [7:0] activation;
 wire [15:0] result = weight * activation;  // Multiply-accumulate
 ```
 
-**Hardwired (SiLens approach):**
+**SiLens approach (hardwired):**
 ```verilog
-// Weight encoded as static wire connection:
-//   +1 → wire connected to VDD
-//   -1 → wire connected to GND  
-//    0 → no connection
-
+// Weight encoded as static wire connection
 // For +1 weight:
-assign result = activation;  // Just pass through
+assign result = activation;    // Pass through
 
 // For -1 weight:
-assign result = -activation; // Negate (invert + 1)
+assign result = -activation;   // Negate
 
 // For 0 weight:
-assign result = 0;           // No contribution
+assign result = 0;             // No contribution
 ```
 
-### XNOR-Popcount Implementation
-
-For binary weights {-1, +1}:
+### XNOR-Popcount for Binary Operations
 
 ```verilog
 module binary_dot_product #(
     parameter WIDTH = 512
 )(
-    input  wire [WIDTH-1:0] activations,  // Binary activations
-    input  wire [WIDTH-1:0] weights,       // Hardwired weights
+    input  wire [WIDTH-1:0] activations,
+    input  wire [WIDTH-1:0] weights,      // Hardwired
     output wire [$clog2(WIDTH):0] result
 );
     wire [WIDTH-1:0] xnor_result;
     
-    // XNOR: same bits → 1, different bits → 0
+    // XNOR: same bits → 1, different → 0
     assign xnor_result = ~(activations ^ weights);
     
-    // Popcount: count number of 1s
-    // Result = 2 * popcount - WIDTH (to get range [-WIDTH, +WIDTH])
+    // Popcount: count 1s
     popcount #(.WIDTH(WIDTH)) pc (
         .in(xnor_result),
         .count(result)
@@ -137,9 +153,7 @@ endmodule
 
 ---
 
-## Data Flow
-
-### Inference Pipeline
+## Data Flow Pipeline
 
 ```
 1. Image Input (384×384×3 RGB)
@@ -161,30 +175,31 @@ endmodule
 9. Output Text
 ```
 
-### Memory Requirements
-
-| Component | Size | Notes |
-|-----------|------|-------|
-| Image input buffer | 442 KB | 384×384×3 bytes |
-| Vision activations | 3.5 MB | 576×768×8 bytes (FP8) |
-| LLM KV cache | 4 MB | For 2K context |
-| Token embeddings | 113 MB | 49152×576×4 bytes |
-| **Total on-chip** | **~130 MB** | Excluding hardwired weights |
-
 ---
 
-## Physical Design Targets
+## Physical Design
 
 ### Die Specifications
 
 | Parameter | Target |
 |-----------|--------|
 | Process | SkyWater SKY130 (130nm) |
-| Die size | ~800mm² (max reticle) |
+| Die size | ~800mm² |
 | Metal layers | 5 |
 | Core voltage | 1.8V |
 | I/O voltage | 3.3V |
 | Clock | 100-200 MHz |
+
+### Area Breakdown
+
+| Component | Area | Percentage |
+|-----------|------|------------|
+| Vision encoder | 280mm² | 35% |
+| Language model | 400mm² | 50% |
+| Projector | 55mm² | 7% |
+| PCIe + I/O | 40mm² | 5% |
+| Power/clocking | 25mm² | 3% |
+| **Total** | **800mm²** | 100% |
 
 ### Power Budget
 
@@ -197,28 +212,17 @@ endmodule
 | Margin | 1W |
 | **Total** | **25W** |
 
-### Area Breakdown (Estimated)
-
-| Component | Area | % |
-|-----------|------|---|
-| Vision encoder | 280mm² | 35% |
-| Language model | 400mm² | 50% |
-| Projector | 55mm² | 7% |
-| PCIe + I/O | 40mm² | 5% |
-| Power/clocking | 25mm² | 3% |
-| **Total** | **800mm²** | 100% |
-
 ---
 
-## Interface
+## PCIe Interface
 
-### PCIe 3.0 x4
+### Specifications
 
 | Parameter | Value |
 |-----------|-------|
-| Bandwidth | 4 GB/s (bidirectional) |
-| Lanes | 4 |
-| Width | x4 slot |
+| Standard | PCIe 3.0 |
+| Lanes | x4 |
+| Bandwidth | 4 GB/s bidirectional |
 | Power | Slot-powered (75W max) |
 
 ### Register Map
@@ -226,10 +230,10 @@ endmodule
 | Offset | Name | Description |
 |--------|------|-------------|
 | 0x000 | CTRL | Control register |
-| 0x004 | STATUS | Status register |
-| 0x008 | IMG_ADDR | Image buffer address |
+| 0x004 | STATUS | Status/interrupt register |
+| 0x008 | IMG_ADDR | Image buffer DMA address |
 | 0x00C | IMG_SIZE | Image dimensions |
-| 0x010 | OUT_ADDR | Output buffer address |
+| 0x010 | OUT_ADDR | Output buffer DMA address |
 | 0x014 | OUT_LEN | Output length |
 | 0x100 | DMA_CTRL | DMA control |
 | 0x200+ | DEBUG | Debug registers |
@@ -240,11 +244,16 @@ endmodule
 
 | Metric | Target |
 |--------|--------|
-| Latency (single image) | <5ms |
+| Single-image latency | <5ms |
 | Throughput (pipelined) | 200+ img/sec |
 | Token generation | 50+ tokens/sec |
-| Power efficiency | 8+ img/joule |
+| Power efficiency | 8+ images/joule |
 
 ---
 
-[← Back to Home]({{ site.baseurl }}/)
+<div style="text-align: center; margin-top: 3rem;">
+<a href="{{ site.baseurl }}/getting-started/" class="btn btn-primary">Get Started →</a>
+<a href="{{ site.baseurl }}/docs/" class="btn btn-outline">View Documentation →</a>
+</div>
+
+</div>

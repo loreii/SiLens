@@ -317,6 +317,70 @@ test-pipeline:
 	@echo "=============================================="
 	@echo "Full pipeline RTL not yet implemented"
 
+## test-e2e-inference: End-to-end inference test through silens_top
+.PHONY: test-e2e-inference
+test-e2e-inference:
+	@echo "=============================================="
+	@echo "Testing: End-to-End Inference (silens_top)"
+	@echo "=============================================="
+	@mkdir -p $(BUILD_DIR)/e2e
+	cd $(BUILD_DIR)/e2e && \
+		MODULE=e2e_inference_tb \
+		TOPLEVEL=silens_top \
+		TOPLEVEL_LANG=verilog \
+		VERILOG_SOURCES="$(RTL_DIR)/common/popcount.v \
+			$(RTL_DIR)/common/ternary_mac.v \
+			$(RTL_DIR)/common/binary_dot_product.v \
+			$(RTL_DIR)/common/layer_norm.v \
+			$(RTL_DIR)/common/softmax_approx.v \
+			$(RTL_DIR)/common/gelu_approx.v \
+			$(RTL_DIR)/common/rms_norm.v \
+			$(RTL_DIR)/common/simd_vector_unit.v \
+			$(RTL_DIR)/common/axi_interface.v \
+			$(RTL_DIR)/common/power_controller.v \
+			$(RTL_DIR)/projector/projector.v \
+			$(RTL_DIR)/top/silens_top.v" \
+		SIM=$(SIM) \
+		COMPILE_ARGS="$(COMPILE_ARGS)" \
+		TESTCASE="test_e2e_inference" \
+		$(MAKE) -f $(shell cocotb-config --makefiles)/Makefile.sim
+	@echo "=============================================="
+	@echo "E2E Inference Test Complete"
+	@echo "=============================================="
+
+## test-e2e-debug: End-to-end debug interface test
+.PHONY: test-e2e-debug
+test-e2e-debug:
+	@echo "=============================================="
+	@echo "Testing: E2E Debug Interface"
+	@echo "=============================================="
+	@mkdir -p $(BUILD_DIR)/e2e
+	cd $(BUILD_DIR)/e2e && \
+		MODULE=e2e_inference_tb \
+		TOPLEVEL=silens_top \
+		TOPLEVEL_LANG=verilog \
+		VERILOG_SOURCES="$(RTL_ALL)" \
+		SIM=$(SIM) \
+		COMPILE_ARGS="$(COMPILE_ARGS)" \
+		TESTCASE="test_e2e_debug_interface" \
+		$(MAKE) -f $(shell cocotb-config --makefiles)/Makefile.sim
+
+## test-e2e-all: Run all E2E tests
+.PHONY: test-e2e-all
+test-e2e-all:
+	@echo "=============================================="
+	@echo "Running All E2E Tests"
+	@echo "=============================================="
+	@mkdir -p $(BUILD_DIR)/e2e
+	cd $(BUILD_DIR)/e2e && \
+		MODULE=e2e_inference_tb \
+		TOPLEVEL=silens_top \
+		TOPLEVEL_LANG=verilog \
+		VERILOG_SOURCES="$(RTL_ALL)" \
+		SIM=$(SIM) \
+		COMPILE_ARGS="$(COMPILE_ARGS)" \
+		$(MAKE) -f $(shell cocotb-config --makefiles)/Makefile.sim
+
 ## test-top: Test top-level module
 .PHONY: test-top
 test-top:
@@ -431,6 +495,11 @@ help:
 	@echo "  test-pipeline     Test full pipeline"
 	@echo "  test-top          Test top-level module"
 	@echo ""
+	@echo "End-to-End Inference:"
+	@echo "  test-e2e-inference  Run complete E2E inference test"
+	@echo "  test-e2e-debug      Test E2E debug interface"
+	@echo "  test-e2e-all        Run all E2E tests"
+	@echo ""
 	@echo "Waveforms:"
 	@echo "  waves             Open waveform viewer"
 	@echo ""
@@ -447,3 +516,6 @@ help:
 	@echo "Environment Variables:"
 	@echo "  SIM=icarus        Use Icarus Verilog (default)"
 	@echo "  SIM=verilator     Use Verilator"
+	@echo "  SILENS_TEST_IMAGE Path to test image (.npy or image file)"
+	@echo "  SILENS_TEST_TOKENS Path to test tokens (.npy)"
+	@echo "  SILENS_RESULTS_FILE Path for results JSON output"
