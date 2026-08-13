@@ -11,46 +11,13 @@ permalink: /architecture/
 
 <div class="content-wrapper">
 
-## Architecture Overview
+## Overview
 
-SiLens implements the complete SmolVLM-256M model as a single ASIC:
+SiLens implements SmolVLM-256M as a single ASIC with three main components:
 
 - **Vision Encoder** (SigLIP-B/16) — Processes images into visual tokens
-- **Multimodal Projector** — Maps vision space to language space  
+- **Multimodal Projector** — Maps vision space to language space
 - **Language Model** (SmolLM2-135M) — Generates text responses
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           SiLens ASIC (~800mm²)                             │
-│                                                                             │
-│  ┌───────────────────────────────────────────────────────────────────────┐ │
-│  │                    VISION ENCODER: SigLIP-B/16                        │ │
-│  │                         (93M parameters)                               │ │
-│  │  ┌─────────┐  ┌─────────┐  ┌─────────┐       ┌─────────┐            │ │
-│  │  │ Patch   │→ │ Embed   │→ │ Trans-  │→ ... →│ Trans-  │            │ │
-│  │  │ Extract │  │ Layer   │  │ former 1│       │ former12│            │ │
-│  │  └─────────┘  └─────────┘  └─────────┘       └─────────┘            │ │
-│  └───────────────────────────────────────────────────────────────────────┘ │
-│                                    ↓                                        │
-│  ┌───────────────────────────────────────────────────────────────────────┐ │
-│  │                    MULTIMODAL PROJECTOR (18M params)                  │ │
-│  └───────────────────────────────────────────────────────────────────────┘ │
-│                                    ↓                                        │
-│  ┌───────────────────────────────────────────────────────────────────────┐ │
-│  │                  LANGUAGE MODEL: SmolLM2-135M                         │ │
-│  │                        (135M parameters)                               │ │
-│  │  ┌─────────┐  ┌─────────┐  ┌─────────┐       ┌─────────┐            │ │
-│  │  │ Token   │→ │ Trans-  │→ │ Trans-  │→ ... →│ Trans-  │→ LM Head  │ │
-│  │  │ Embed   │  │ former 1│  │ former 2│       │ former30│            │ │
-│  │  └─────────┘  └─────────┘  └─────────┘       └─────────┘            │ │
-│  └───────────────────────────────────────────────────────────────────────┘ │
-│                                                                             │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐      │
-│  │   PCIe 3.0  │  │    Power    │  │    Clock    │  │     I/O     │      │
-│  │   x4 PHY    │  │  Management │  │   & Reset   │  │   Control   │      │
-│  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘      │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
 
 ---
 
@@ -58,112 +25,63 @@ SiLens implements the complete SmolVLM-256M model as a single ASIC:
 
 ### Vision Encoder (SigLIP-B/16)
 
-| Parameter | Value |
-|:----------|:------|
-| Parameters | 93M |
-| Patch size | 16×16 pixels |
-| Input size | 384×384 |
-| Hidden dim | 768 |
-| Layers | 12 |
-| Attention heads | 12 |
-| Output tokens | 576 |
+- **Parameters:** 93M
+- **Patch size:** 16×16 pixels
+- **Input size:** 384×384
+- **Hidden dimension:** 768
+- **Layers:** 12 transformer blocks
+- **Attention heads:** 12
+- **Output:** 576 tokens
 
 ### Multimodal Projector
 
-| Parameter | Value |
-|:----------|:------|
-| Parameters | 18M |
-| Input dim | 768 |
-| Output dim | 576 |
-| Type | Linear projection |
+- **Parameters:** 18M
+- **Input dimension:** 768
+- **Output dimension:** 576
+- **Type:** Linear projection
 
 ### Language Model (SmolLM2-135M)
 
-| Parameter | Value |
-|:----------|:------|
-| Parameters | 135M |
-| Hidden dim | 576 |
-| Layers | 30 |
-| Attention heads | 9 |
-| Vocabulary | 49,152 tokens |
-| Max context | 8,192 tokens |
+- **Parameters:** 135M
+- **Hidden dimension:** 576
+- **Layers:** 30 transformer blocks
+- **Attention heads:** 9
+- **Vocabulary:** 49,152 tokens
+- **Max context:** 8,192 tokens
 
 ---
 
 ## Hardwired Weight Encoding
 
-The key innovation: encoding model weights as physical wire connections.
+The key innovation: model weights become physical wire connections.
 
 ### Ternary Quantization
 
-SmolVLM-256M uses ternary weights: **{-1, 0, +1}**
+SmolVLM-256M uses ternary weights {-1, 0, +1}:
 
-| Weight | Physical Implementation |
-|:-------|:-----------------------|
-| **+1** | Metal trace to VDD (power) |
-| **-1** | Metal trace to GND (ground) |
-| **0** | No connection (implicit zero) |
+- **Weight = +1** → Metal trace to VDD (power)
+- **Weight = -1** → Metal trace to GND (ground)
+- **Weight = 0** → No connection (implicit zero)
 
-### Traditional vs Hardwired
+### Why This Works
 
-**Traditional (memory-based):**
+**Traditional approach:** Weights stored in memory, loaded for each computation. Memory bandwidth becomes the bottleneck.
 
-```verilog
-wire [7:0] weight;        // 8-bit weight from SRAM
-wire [7:0] activation;
-wire [15:0] result = weight * activation;
-```
-
-**SiLens (hardwired):**
-
-```verilog
-// Weight encoded as static wire connection
-// For +1: assign result = activation;
-// For -1: assign result = -activation;
-// For  0: assign result = 0;
-```
-
-### XNOR-Popcount for Binary Operations
-
-```verilog
-module binary_dot_product #(parameter WIDTH = 512)(
-    input  wire [WIDTH-1:0] activations,
-    input  wire [WIDTH-1:0] weights,      // Hardwired
-    output wire [$clog2(WIDTH):0] result
-);
-    wire [WIDTH-1:0] xnor_result;
-    assign xnor_result = ~(activations ^ weights);
-    
-    popcount #(.WIDTH(WIDTH)) pc (
-        .in(xnor_result),
-        .count(result)
-    );
-endmodule
-```
+**SiLens approach:** Weights ARE the circuit. No memory access needed. Computation happens at wire speed (nanoseconds).
 
 ---
 
-## Data Flow Pipeline
+## Data Flow
 
-```
-1. Image Input (384×384×3 RGB)
-   ↓
-2. Patch Extraction (24×24 patches of 16×16)
-   ↓
-3. Patch Embedding (576 tokens × 768 dim)
-   ↓
-4. Vision Transformer (12 layers)
-   ↓
-5. Projection (768 → 576 dim)
-   ↓
-6. Concatenate with text tokens
-   ↓
-7. Language Model (30 layers)
-   ↓
-8. Token Generation (autoregressive)
-   ↓
-9. Output Text
-```
+1. **Image Input** — 384×384×3 RGB image
+2. **Patch Extraction** — Split into 24×24 patches of 16×16 pixels
+3. **Patch Embedding** — Convert to 576 tokens × 768 dimensions
+4. **Vision Transformer** — Process through 12 layers
+5. **Projection** — Map from 768 to 576 dimensions
+6. **Concatenation** — Combine with text tokens
+7. **Language Model** — Process through 30 layers
+8. **Token Generation** — Autoregressive output
+9. **Output Text** — Final response
 
 ---
 
@@ -171,36 +89,29 @@ endmodule
 
 ### Die Specifications
 
-| Parameter | Target |
-|:----------|:-------|
-| Process | SkyWater SKY130 (130nm) |
-| Die size | ~800mm² |
-| Metal layers | 5 |
-| Core voltage | 1.8V |
-| I/O voltage | 3.3V |
-| Clock | 100-200 MHz |
+- **Process:** SkyWater SKY130 (130nm)
+- **Die size:** ~800mm²
+- **Metal layers:** 5
+- **Core voltage:** 1.8V
+- **I/O voltage:** 3.3V
+- **Clock:** 100-200 MHz
 
 ### Area Breakdown
 
-| Component | Area | Percentage |
-|:----------|:-----|:-----------|
-| Vision encoder | 280mm² | 35% |
-| Language model | 400mm² | 50% |
-| Projector | 55mm² | 7% |
-| PCIe + I/O | 40mm² | 5% |
-| Power/clocking | 25mm² | 3% |
-| **Total** | **800mm²** | 100% |
+- **Vision encoder:** 280mm² (35%)
+- **Language model:** 400mm² (50%)
+- **Projector:** 55mm² (7%)
+- **PCIe + I/O:** 40mm² (5%)
+- **Power/clocking:** 25mm² (3%)
 
 ### Power Budget
 
-| Component | Power |
-|:----------|:------|
-| Vision encoder | 8W |
-| Language model | 12W |
-| PCIe PHY | 2W |
-| Clock/control | 2W |
-| Margin | 1W |
-| **Total** | **25W** |
+- **Vision encoder:** 8W
+- **Language model:** 12W
+- **PCIe PHY:** 2W
+- **Clock/control:** 2W
+- **Margin:** 1W
+- **Total:** 25W
 
 ---
 
@@ -208,36 +119,30 @@ endmodule
 
 ### Specifications
 
-| Parameter | Value |
-|:----------|:------|
-| Standard | PCIe 3.0 |
-| Lanes | x4 |
-| Bandwidth | 4 GB/s bidirectional |
-| Power | Slot-powered (75W max) |
+- **Standard:** PCIe 3.0
+- **Lanes:** x4
+- **Bandwidth:** 4 GB/s bidirectional
+- **Power:** Slot-powered (75W max available)
 
 ### Register Map
 
-| Offset | Name | Description |
-|:-------|:-----|:------------|
-| 0x000 | CTRL | Control register |
-| 0x004 | STATUS | Status/interrupt register |
-| 0x008 | IMG_ADDR | Image buffer DMA address |
-| 0x00C | IMG_SIZE | Image dimensions |
-| 0x010 | OUT_ADDR | Output buffer DMA address |
-| 0x014 | OUT_LEN | Output length |
-| 0x100 | DMA_CTRL | DMA control |
-| 0x200+ | DEBUG | Debug registers |
+- **0x000 CTRL** — Control register
+- **0x004 STATUS** — Status/interrupt register
+- **0x008 IMG_ADDR** — Image buffer DMA address
+- **0x00C IMG_SIZE** — Image dimensions
+- **0x010 OUT_ADDR** — Output buffer DMA address
+- **0x014 OUT_LEN** — Output length
+- **0x100 DMA_CTRL** — DMA control
+- **0x200+ DEBUG** — Debug registers
 
 ---
 
 ## Performance Targets
 
-| Metric | Target |
-|:-------|:-------|
-| Single-image latency | <5ms |
-| Throughput (pipelined) | 200+ img/sec |
-| Token generation | 50+ tokens/sec |
-| Power efficiency | 8+ images/joule |
+- **Single-image latency:** <5ms
+- **Throughput (pipelined):** 200+ images/sec
+- **Token generation:** 50+ tokens/sec
+- **Power efficiency:** 8+ images/joule
 
 ---
 

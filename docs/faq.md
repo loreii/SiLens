@@ -15,44 +15,35 @@ permalink: /faq/
 
 ### What is SiLens?
 
-SiLens is a PCIe accelerator card that runs a vision-language AI model (SmolVLM-256M) with the model weights **physically etched into the silicon**. This eliminates memory access bottlenecks and enables extremely fast, low-power inference.
+A PCIe accelerator card that runs SmolVLM-256M with weights **physically etched into silicon**. This eliminates memory bottlenecks for extremely fast, low-power inference.
 
 ### What does "hardwired" mean?
 
-Traditional AI accelerators store model weights in memory (RAM/VRAM) and load them for each computation. In SiLens, each weight value is encoded as a physical wire connection:
+Traditional accelerators store weights in memory and load them for each computation. In SiLens, each weight is a physical wire:
 
-- **Weight = +1** → Wire connected to VDD (power)
-- **Weight = -1** → Wire connected to GND (ground)
+- **Weight = +1** → Wire to VDD (power)
+- **Weight = -1** → Wire to GND (ground)
 - **Weight = 0** → No connection
 
-The model IS the circuit—no memory access required.
+The model IS the circuit—no memory access needed.
 
 ### Can I run different models?
 
-No. The weights are physically etched into silicon and cannot be changed. SiLens is purpose-built for SmolVLM-256M.
-
-We're exploring mask-programmable variants for future products.
+No. Weights are physically etched and cannot be changed. SiLens is purpose-built for SmolVLM-256M.
 
 ### Is SiLens a GPU?
 
-No. SiLens is an **inference-only ASIC**. Unlike a GPU:
-
+No. It's an **inference-only ASIC**:
 - Cannot run arbitrary programs
 - Cannot train models
 - Runs only the hardwired model
 - Has no general-purpose memory
 
-Think of it as a "model in a chip" rather than a programmable accelerator.
-
-### Why 130nm? Isn't that ancient?
-
-Yes, 130nm is old (iPhones use 3nm), but:
+### Why 130nm?
 
 1. **It's open** — SkyWater SKY130 is the only fully open-source PDK
-2. **It's affordable** — Mask costs ~$100K vs $10M+ for modern nodes
+2. **It's affordable** — ~$100K masks vs $10M+ for modern nodes
 3. **It's sufficient** — Our architecture isn't compute-bound
-
-Future generations will use more advanced nodes.
 
 ---
 
@@ -60,160 +51,140 @@ Future generations will use more advanced nodes.
 
 ### How fast is SiLens?
 
-| Metric | Performance |
-|:-------|:------------|
-| Single-image latency | **<5ms** |
-| Throughput (single stream) | **200+ img/sec** |
-| Throughput (pipelined) | **1000+ img/sec** |
+- **Latency:** <5ms single image
+- **Throughput:** 200+ images/sec
+- **Pipelined:** 1000+ images/sec
 
-### How does it compare to a GPU?
+### Compared to RTX 4060?
 
-| Metric | RTX 4060 | SiLens | Improvement |
-|:-------|:---------|:-------|:------------|
-| Price | $299 | $149-249 | **20-50% cheaper** |
-| Latency | 300-1000ms | <5ms | **60-200× faster** |
-| Throughput | 1-3 img/sec | 200+ img/sec | **100× faster** |
-| Power | 115W | 25W | **4.6× efficient** |
+- **Price:** $149-249 vs $299 (20-50% cheaper)
+- **Latency:** <5ms vs 300-1000ms (60-200× faster)
+- **Throughput:** 200+ vs 1-3 img/sec (100× faster)
+- **Power:** 25W vs 115W (4.6× more efficient)
 
-### Why is SiLens so much faster?
+### Why so much faster?
 
-GPUs are limited by **memory bandwidth**, not compute. When running SmolVLM-256M on a GPU:
-
-1. The model (500MB) sits in VRAM
-2. For each token, weights are loaded from memory
-3. Memory bandwidth (288 GB/s) becomes the bottleneck
-4. GPU compute utilization is <5%
+GPUs are limited by memory bandwidth, not compute. When running SmolVLM-256M:
+- Model (500MB) sits in VRAM
+- Weights loaded from memory each token
+- Memory bandwidth is the bottleneck
+- GPU compute utilization <5%
 
 SiLens eliminates this—weights are circuits, not data.
 
-### Can I use SiLens for training?
+### Can I train on SiLens?
 
-No. SiLens is inference-only. Use GPUs or cloud for training.
+No. Inference only. Use GPUs/cloud for training.
 
 ---
 
 ## Compatibility
 
-### What operating systems are supported?
+### Operating Systems?
 
-| OS | Support |
-|:---|:--------|
-| Linux (Ubuntu 20.04+) | ✅ Full support |
-| Windows 10/11 | 🟡 Planned |
-| macOS | ❌ Not supported (no PCIe) |
+- **Linux (Ubuntu 20.04+):** ✅ Full support
+- **Windows 10/11:** 🟡 Planned
+- **macOS:** ❌ Not supported (no PCIe)
 
-### What PCIe slot do I need?
+### What PCIe slot?
 
-SiLens requires **PCIe 3.0 x4** or higher:
-
-- ✅ PCIe 3.0/4.0/5.0 x4, x8, x16 slots
-- ❌ PCIe x1 slots (insufficient bandwidth)
+Requires **PCIe 3.0 x4** or higher:
+- ✅ x4, x8, x16 slots (3.0/4.0/5.0)
+- ❌ x1 slots
 - ❌ M.2 slots
-- ❌ USB ports
+- ❌ USB
 
-### Does it need external power?
+### External power needed?
 
-No. SiLens draws 25W from the PCIe slot. No additional power cables required.
+No. 25W from PCIe slot. No cables needed.
 
-### Can I use multiple cards?
+### Multiple cards?
 
-Yes! Multiple cards work together for:
+Yes! Up to 8 cards per system for:
+- Higher throughput
+- Redundancy
+- Load balancing
 
-- **Higher throughput** — Each card adds 200+ img/sec
-- **Redundancy** — Failover if one card fails
-- **Load balancing** — Distribute workloads
+### Programming languages?
 
-Our driver supports up to 8 cards per system.
-
-### What programming languages are supported?
-
-- **Python** — Official SDK (`pip install silens`)
-- **C/C++** — Native library included
-- **Others** — Community bindings welcome
+- **Python:** Official SDK (`pip install silens`)
+- **C/C++:** Native library
+- **Others:** Community bindings welcome
 
 ---
 
 ## Technical Details
 
-### What model does SiLens run?
+### What model?
 
-**SmolVLM-256M** — a 246M parameter vision-language model:
+**SmolVLM-256M** (246M parameters):
+- Vision: SigLIP-B/16 (93M)
+- Language: SmolLM2-135M (135M)
+- Projector: 18M
 
-| Component | Parameters |
-|:----------|:-----------|
-| SigLIP-B/16 (vision) | 93M |
-| SmolLM2-135M (language) | 135M |
-| Multimodal projector | 18M |
-| **Total** | **246M** |
+### What can it do?
 
-### What can SmolVLM-256M do?
+✅ Describe images
+✅ Answer questions about images
+✅ Read text in images (OCR)
+✅ Compare images
+✅ Process video frames
 
-- ✅ Describe images (detailed captions)
-- ✅ Answer questions about images (Visual QA)
-- ✅ Read text in images (OCR)
-- ✅ Compare images
-- ✅ Process video (via rapid frame analysis)
-- ❌ Generate images
-- ❌ Complex multi-step reasoning
-- ❌ Very long context (>2K tokens)
+❌ Generate images
+❌ Complex reasoning
+❌ Long context (>2K tokens)
 
-### What's the ASIC specification?
+### ASIC specs?
 
-| Parameter | Value |
-|:----------|:------|
-| Process | SkyWater SKY130 (130nm) |
-| Die size | ~800mm² |
-| Metal layers | 5 |
-| Core voltage | 1.8V |
-| Clock | 100-200 MHz |
-| Package | BGA-625 |
+- **Process:** SkyWater SKY130 (130nm)
+- **Die size:** ~800mm²
+- **Voltage:** 1.8V core, 3.3V I/O
+- **Clock:** 100-200 MHz
+- **Package:** BGA-625
 
-### What about manufacturing yield?
+### Manufacturing yield?
 
-At 800mm², expected yield is 30-50%. We've:
-
-- Priced conservatively (assuming 30% yield)
-- Implemented redundancy where possible
+At 800mm², expected 30-50% yield. We've:
+- Priced conservatively (30% assumption)
+- Added redundancy where possible
 - Partnered with SkyWater on optimization
 
 ---
 
 ## Future Plans
 
-### Will there be a Gen 2?
+### Gen 2?
 
-Yes! Our roadmap:
+Yes! Roadmap:
+- **Gen 1 (2028):** 130nm, SmolVLM-256M
+- **Gen 1.5 (2029):** 65nm, 2× speed, 50% power
+- **Gen 2 (2030):** 45nm, SmolVLM-500M
 
-| Generation | Timeline | Process | Model | Improvement |
-|:-----------|:---------|:--------|:------|:------------|
-| Gen 1 | 2028 | 130nm | SmolVLM-256M | Initial release |
-| Gen 1.5 | 2029 | 65nm | SmolVLM-256M | 2× speed, 50% power |
-| Gen 2 | 2030 | 45nm | SmolVLM-500M | 2× model size |
+### USB or M.2 versions?
 
-### Will you make USB or M.2 versions?
+Exploring based on demand:
+- **M.2:** Lower power, smaller
+- **USB:** External enclosure
 
-We're exploring both based on community demand:
+### How to contribute?
 
-- **M.2** — Lower power, smaller form factor
-- **USB** — External enclosure option
-
-### How can I contribute?
-
-- **Before silicon** — Test simulations, review designs, improve docs
-- **After shipping** — Driver development, SDK improvements
-- **Always** — Bug reports, use cases, community support
+- Test simulations
+- Review designs
+- Improve documentation
+- Driver development
+- Bug reports
 
 Join us on [GitHub](https://github.com/loreii/SiLens)!
 
 ---
 
-## Still Have Questions?
+## Contact
 
 <div class="features-grid">
 <div class="feature-card">
 <div class="feature-icon">💬</div>
 <h3>Discord</h3>
-<p>Join our community (coming soon)</p>
+<p>Coming soon</p>
 </div>
 
 <div class="feature-card">
@@ -224,8 +195,8 @@ Join us on [GitHub](https://github.com/loreii/SiLens)!
 
 <div class="feature-card">
 <div class="feature-icon">🐛</div>
-<h3>GitHub Issues</h3>
-<p><a href="https://github.com/loreii/SiLens/issues" target="_blank">Report bugs & requests</a></p>
+<h3>GitHub</h3>
+<p><a href="https://github.com/loreii/SiLens/issues" target="_blank">Issues & Requests</a></p>
 </div>
 </div>
 

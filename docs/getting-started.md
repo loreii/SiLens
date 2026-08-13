@@ -18,9 +18,9 @@ permalink: /getting-started/
   </div>
 </div>
 
-## Quick Start: Interactive Demo
+## Quick Start
 
-The fastest way to explore SiLens capabilities:
+The fastest way to explore SiLens:
 
 ```bash
 git clone https://github.com/loreii/SiLens.git
@@ -29,27 +29,23 @@ pip install numpy
 python demo.py
 ```
 
-The demo includes:
+### Demo Features
 
-| Demo | Description |
-|:-----|:------------|
-| Ternary Quantization | Convert FP32 weights to 2-bit ternary (16× compression) |
-| Hardware Simulation | Interact with simulated SiLens accelerator |
-| Performance Profiling | Detailed timing and throughput analysis |
-| Multi-Device Inference | Distributed batch processing |
-| Sparse Attention | Attention pattern optimization |
-| End-to-End Pipeline | Complete inference demonstration |
+- **Ternary Quantization** — Convert FP32 weights to 2-bit (16× compression)
+- **Hardware Simulation** — Interact with simulated accelerator
+- **Performance Profiling** — Timing and throughput analysis
+- **Multi-Device Inference** — Distributed batch processing
+- **Sparse Attention** — Attention pattern optimization
+- **End-to-End Pipeline** — Complete inference demo
 
 ---
 
 ## Prerequisites
 
-Before you begin, ensure you have:
-
 - **Python 3.8+** with pip
-- **Git** for cloning the repository
-- **8GB+ RAM** recommended for model conversion
-- **NVIDIA GPU** (optional) for faster analysis
+- **Git** for cloning
+- **8GB+ RAM** recommended
+- **NVIDIA GPU** (optional, for faster analysis)
 
 ---
 
@@ -67,37 +63,23 @@ git submodule update --init --recursive
 
 ```bash
 python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
+source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 3. Download Model Weights
+### 3. Download Model
 
 ```bash
 python tools/download_model.py
 ```
 
-Or manually:
-
-```bash
-pip install transformers torch pillow
-
-python -c "
-from transformers import AutoProcessor, AutoModelForVision2Seq
-processor = AutoProcessor.from_pretrained('HuggingFaceTB/SmolVLM-256M-Instruct')
-model = AutoModelForVision2Seq.from_pretrained('HuggingFaceTB/SmolVLM-256M-Instruct')
-processor.save_pretrained('model/smolvlm-256m')
-model.save_pretrained('model/smolvlm-256m')
-"
-```
-
 ---
 
-## Model Quantization Workflow
+## Model Quantization
 
-Convert the FP32 model to ternary weights for hardware implementation.
+Convert FP32 model to ternary weights:
 
-### Step 1: Analyze Model
+### Step 1: Analyze
 
 ```bash
 python model/conversion/analyze_model.py \
@@ -106,85 +88,50 @@ python model/conversion/analyze_model.py \
 
 ### Step 2: Sensitivity Analysis
 
-Identify layers most sensitive to quantization:
-
 ```bash
 python model/conversion/sensitivity_analysis.py \
     --model HuggingFaceTB/SmolVLM-256M-Instruct
 ```
 
-### Step 3: Quantize to Ternary
+### Step 3: Quantize
 
 ```bash
 python model/conversion/quantize_ternary.py \
     --model HuggingFaceTB/SmolVLM-256M-Instruct \
-    --alpha 0.7 \
-    --mode per_tensor \
-    --export \
-    --output ./model/weights/quantized
+    --alpha 0.7 --mode per_tensor \
+    --export --output ./model/weights/quantized
 ```
 
-### Step 4: Validate Quality
+### Step 4: Validate
 
 ```bash
 python model/conversion/validate_quantization.py \
     --model HuggingFaceTB/SmolVLM-256M-Instruct \
-    --quantized ./model/weights/quantized \
-    --detailed
-```
-
-### Step 5: Run Benchmarks
-
-```bash
-python model/validation/benchmark_suite.py \
-    --model HuggingFaceTB/SmolVLM-256M-Instruct \
-    --all
-```
-
----
-
-## Optimized Quantization
-
-For best accuracy, use gradient-based alpha optimization:
-
-```bash
-python model/conversion/quantize_ternary.py \
-    --model HuggingFaceTB/SmolVLM-256M-Instruct \
-    --optimize-alpha \
-    --export \
-    --output ./model/weights/optimized
+    --quantized ./model/weights/quantized
 ```
 
 ---
 
 ## Expected Results
 
-With default settings (α=0.7, per_tensor):
+With default settings (α=0.7):
 
-| Metric | Original | Quantized | Change |
-|:-------|:---------|:----------|:-------|
-| Memory | 1024 MB | 64 MB | **16× smaller** |
-| VQA Accuracy | ~71% | ~67% | ~4% drop |
-| Perplexity | ~15 | ~17 | ~13% increase |
-| Cosine Similarity | — | 0.92 | — |
+- **Memory:** 1024 MB → 64 MB (16× smaller)
+- **VQA Accuracy:** ~71% → ~67% (~4% drop)
+- **Perplexity:** ~15 → ~17 (~13% increase)
+- **Cosine Similarity:** 0.92
 
 ---
 
 ## Repository Structure
 
-```
-SiLens/
-├── model/
-│   ├── conversion/      # Quantization tools
-│   ├── validation/      # Accuracy benchmarks
-│   └── analysis/        # Weight visualization
-├── rtl/                 # Verilog source (coming soon)
-├── fpga/                # FPGA prototypes
-├── drivers/             # Linux kernel driver
-├── sdk/                 # Python SDK
-├── firmware/            # Card firmware
-└── docs/                # Documentation
-```
+- **model/** — Quantization and validation tools
+- **rtl/** — Verilog source (coming soon)
+- **fpga/** — FPGA prototypes
+- **drivers/** — Linux kernel driver
+- **sdk/** — Python SDK
+- **firmware/** — Card firmware
+- **docs/** — Documentation
 
 ---
 
@@ -194,21 +141,21 @@ SiLens/
 <div class="feature-card">
 <div class="feature-icon">📐</div>
 <h3>Architecture</h3>
-<p>Understand the hardware design and data flow.</p>
+<p>Understand the hardware design.</p>
 <a href="{{ site.baseurl }}/architecture/">Learn more →</a>
 </div>
 
 <div class="feature-card">
 <div class="feature-icon">📖</div>
 <h3>Documentation</h3>
-<p>Detailed API reference and tool documentation.</p>
+<p>API reference and tools.</p>
 <a href="{{ site.baseurl }}/docs/">View docs →</a>
 </div>
 
 <div class="feature-card">
 <div class="feature-icon">🤝</div>
 <h3>Contributing</h3>
-<p>Join the community and help build SiLens.</p>
+<p>Help build SiLens.</p>
 <a href="https://github.com/loreii/SiLens/blob/main/CONTRIBUTING.md" target="_blank">Contribute →</a>
 </div>
 </div>
