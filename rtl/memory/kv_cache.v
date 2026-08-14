@@ -200,8 +200,8 @@ module kv_cache_tb;
         
         // Write some KV pairs
         for (i = 0; i < 10; i = i + 1) begin
-            k_in = {(DIM){i[7:0]}};
-            v_in = {(DIM){(i+128)[7:0]}};
+            k_in = {DIM{1'b0}} | i[7:0];  // Fill lower bits with i
+            v_in = {DIM{1'b0}} | ((i + 128) & 8'hFF);  // Fill lower bits with i+128
             kv_write_en = 1;
             @(posedge clk);
         end

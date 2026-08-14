@@ -67,7 +67,7 @@ module silens_top #(
     // Control
     input  wire         frame_start,
     input  wire         seq_start,
-    input  wire         generate,
+    input  wire         gen_start,
     
     // Output
     output wire [$clog2(VOCAB_SIZE)-1:0] token_out,
@@ -107,28 +107,28 @@ module silens_top #(
     // Synchronize control signals from PCIe domain to core domain
     reg [2:0] frame_start_sync;
     reg [2:0] seq_start_sync;
-    reg [2:0] generate_sync;
+    reg [2:0] gen_start_sync;
     
     wire frame_start_core;
     wire seq_start_core;
-    wire generate_core;
+    wire gen_start_core;
     
     always @(posedge clk) begin
         if (!rst_n) begin
             frame_start_sync <= 3'b0;
             seq_start_sync   <= 3'b0;
-            generate_sync    <= 3'b0;
+            gen_start_sync    <= 3'b0;
         end else begin
             frame_start_sync <= {frame_start_sync[1:0], frame_start};
             seq_start_sync   <= {seq_start_sync[1:0], seq_start};
-            generate_sync    <= {generate_sync[1:0], generate};
+            gen_start_sync    <= {gen_start_sync[1:0], gen_start};
         end
     end
     
     // Edge detection for pulse signals
     assign frame_start_core = frame_start_sync[1] & ~frame_start_sync[2];
     assign seq_start_core   = seq_start_sync[1] & ~seq_start_sync[2];
-    assign generate_core    = generate_sync[1] & ~generate_sync[2];
+    assign gen_start_core    = gen_start_sync[1] & ~gen_start_sync[2];
     
     // Synchronize status signals from core domain to PCIe domain
     reg [1:0] vision_busy_sync;
@@ -217,7 +217,7 @@ module silens_top #(
     wire llm_vision_ready;
     reg llm_is_vision_token;
     reg llm_seq_start;
-    reg llm_generate;
+    reg llm_gen_start;
     
     // =========================================================================
     // Weight ROM interfaces (directly connected to hardwired weights)
@@ -288,7 +288,7 @@ module silens_top #(
             llm_vision_valid <= 1'b0;
             llm_is_vision_token <= 1'b0;
             llm_seq_start <= 1'b0;
-            llm_generate <= 1'b0;
+            llm_gen_start <= 1'b0;
         end else begin
             // Default pulse signals
             proj_seq_start <= 1'b0;
@@ -307,8 +307,8 @@ module silens_top #(
                         token_counter <= 0;
                     end else if (seq_start_core) begin
                         llm_seq_start <= 1'b1;
-                    end else if (generate_core) begin
-                        llm_generate <= 1'b1;
+                    end else if (gen_start_core) begin
+                        llm_gen_start <= 1'b1;
                         state <= STATE_GENERATE;
                     end
                 end
@@ -368,8 +368,8 @@ module silens_top #(
                 
                 STATE_LLM_TEXT: begin
                     // Accept text tokens from user
-                    if (generate_core) begin
-                        llm_generate <= 1'b1;
+                    if (gen_start_core) begin
+                        llm_gen_start <= 1'b1;
                         state <= STATE_GENERATE;
                     end
                 end

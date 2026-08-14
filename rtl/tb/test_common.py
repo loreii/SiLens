@@ -13,7 +13,6 @@ Run with:
 import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import Timer, RisingEdge, FallingEdge
-from cocotb.result import TestSuccess, TestFailure
 import random
 
 
@@ -49,10 +48,12 @@ async def test_popcount_all_zeros(dut):
     dut._log.info("Testing popcount: all zeros")
     
     # Get the width parameter from DUT
-    width = len(dut.in_)
+    # Use getattr for 'in' since it's a Python reserved word
+    dut_in = getattr(dut, 'in')
+    width = len(dut_in)
     
     # Apply all zeros
-    dut.in_.value = 0
+    dut_in.value = 0
     
     # Wait for combinational logic to settle
     await Timer(10, units='ns')
@@ -77,10 +78,11 @@ async def test_popcount_all_ones(dut):
     dut._log.info("Testing popcount: all ones")
     
     # Get the width parameter from DUT
-    width = len(dut.in_)
+    dut_in = getattr(dut, 'in')
+    width = len(dut_in)
     
     # Apply all ones
-    dut.in_.value = (1 << width) - 1
+    dut_in.value = (1 << width) - 1
     
     # Wait for combinational logic to settle
     await Timer(10, units='ns')
@@ -104,11 +106,12 @@ async def test_popcount_single_bit(dut):
     """
     dut._log.info("Testing popcount: single bit positions")
     
-    width = len(dut.in_)
+    dut_in = getattr(dut, 'in')
+    width = len(dut_in)
     
     for i in range(min(width, 16)):  # Test first 16 positions for speed
         # Set single bit at position i
-        dut.in_.value = 1 << i
+        dut_in.value = 1 << i
         
         await Timer(10, units='ns')
         
@@ -131,14 +134,15 @@ async def test_popcount_alternating(dut):
     """
     dut._log.info("Testing popcount: alternating patterns")
     
-    width = len(dut.in_)
+    dut_in = getattr(dut, 'in')
+    width = len(dut_in)
     
     # Pattern 0b0101...
     pattern1 = 0
     for i in range(0, width, 2):
         pattern1 |= (1 << i)
     
-    dut.in_.value = pattern1
+    dut_in.value = pattern1
     await Timer(10, units='ns')
     
     expected = python_popcount(pattern1, width)
@@ -151,7 +155,7 @@ async def test_popcount_alternating(dut):
     for i in range(1, width, 2):
         pattern2 |= (1 << i)
     
-    dut.in_.value = pattern2
+    dut_in.value = pattern2
     await Timer(10, units='ns')
     
     expected = python_popcount(pattern2, width)
@@ -172,14 +176,15 @@ async def test_popcount_random(dut):
     """
     dut._log.info("Testing popcount: random values")
     
-    width = len(dut.in_)
+    dut_in = getattr(dut, 'in')
+    width = len(dut_in)
     num_tests = 100
     
     for i in range(num_tests):
         # Generate random value
         test_value = random.randint(0, (1 << width) - 1)
         
-        dut.in_.value = test_value
+        dut_in.value = test_value
         await Timer(10, units='ns')
         
         expected = python_popcount(test_value, width)
@@ -202,12 +207,13 @@ async def test_popcount_power_of_two_minus_one(dut):
     """
     dut._log.info("Testing popcount: power-of-two minus one")
     
-    width = len(dut.in_)
+    dut_in = getattr(dut, 'in')
+    width = len(dut_in)
     
     for n in range(1, min(width + 1, 17)):  # Test up to 16 bits
         test_value = (1 << n) - 1
         
-        dut.in_.value = test_value
+        dut_in.value = test_value
         await Timer(10, units='ns')
         
         expected = n
@@ -229,7 +235,8 @@ async def test_popcount_edge_cases(dut):
     """
     dut._log.info("Testing popcount: neural network edge cases")
     
-    width = len(dut.in_)
+    dut_in = getattr(dut, 'in')
+    width = len(dut_in)
     
     # Test patterns common in binary neural networks
     test_cases = [
@@ -243,7 +250,7 @@ async def test_popcount_edge_cases(dut):
     for desc, gen_value in test_cases:
         test_value = gen_value(width)
         
-        dut.in_.value = test_value
+        dut_in.value = test_value
         await Timer(10, units='ns')
         
         expected = python_popcount(test_value, width)
