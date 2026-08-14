@@ -18,124 +18,109 @@ permalink: /getting-started/
   </div>
 </div>
 
-## Quick Start
+<h2>Quick Start</h2>
 
-The fastest way to explore SiLens:
+<p>Clone the repository and run the demo:</p>
 
-```bash
-git clone https://github.com/loreii/SiLens.git
+<pre><code>git clone https://github.com/loreii/SiLens.git
 cd SiLens
 pip install numpy
-python demo.py
-```
+python demo.py</code></pre>
 
-### Demo Features
+<h3>Demo Features</h3>
 
-- **Ternary Quantization** — Convert FP32 weights to 2-bit (16× compression)
-- **Hardware Simulation** — Interact with simulated accelerator
-- **Performance Profiling** — Timing and throughput analysis
-- **Multi-Device Inference** — Distributed batch processing
-- **Sparse Attention** — Attention pattern optimization
-- **End-to-End Pipeline** — Complete inference demo
+<ul>
+  <li><strong>Ternary Quantization</strong> — Convert FP32 weights to 2-bit (16× compression)</li>
+  <li><strong>Hardware Simulation</strong> — Interact with simulated accelerator</li>
+  <li><strong>Performance Profiling</strong> — Timing and throughput analysis</li>
+  <li><strong>Multi-Device Inference</strong> — Distributed batch processing</li>
+  <li><strong>Sparse Attention</strong> — Attention pattern optimization</li>
+  <li><strong>End-to-End Pipeline</strong> — Complete inference demo</li>
+</ul>
 
----
+<hr>
 
-## Prerequisites
+<h2>Prerequisites</h2>
 
-- **Python 3.8+** with pip
-- **Git** for cloning
-- **8GB+ RAM** recommended
-- **NVIDIA GPU** (optional, for faster analysis)
+<ul>
+  <li><strong>Python 3.8+</strong> with pip</li>
+  <li><strong>Git</strong> for cloning</li>
+  <li><strong>8GB+ RAM</strong> recommended</li>
+  <li><strong>NVIDIA GPU</strong> (optional, for faster analysis)</li>
+</ul>
 
----
+<hr>
 
-## Full Installation
+<h2>Full Installation</h2>
 
-### 1. Clone Repository
+<h3>1. Clone Repository</h3>
 
-```bash
-git clone https://github.com/loreii/SiLens.git
+<pre><code>git clone https://github.com/loreii/SiLens.git
 cd SiLens
-git submodule update --init --recursive
-```
+git submodule update --init --recursive</code></pre>
 
-### 2. Create Python Environment
+<h3>2. Create Python Environment</h3>
 
-```bash
-python -m venv venv
+<pre><code>python -m venv venv
 source venv/bin/activate
-pip install -r requirements.txt
-```
+pip install -r requirements.txt</code></pre>
 
-### 3. Download Model
+<h3>3. Download Model</h3>
 
-```bash
-python tools/download_model.py
-```
+<pre><code>python tools/download_model.py</code></pre>
 
----
+<hr>
 
-## Model Quantization
+<h2>Model Quantization</h2>
 
-Convert FP32 model to ternary weights:
+<p>Convert FP32 model to ternary weights:</p>
 
-### Step 1: Analyze
+<h3>Step 1: Analyze</h3>
 
-```bash
-python model/conversion/analyze_model.py \
-    --model HuggingFaceTB/SmolVLM-256M-Instruct
-```
+<pre><code>python model/conversion/analyze_model.py --model HuggingFaceTB/SmolVLM-256M-Instruct</code></pre>
 
-### Step 2: Sensitivity Analysis
+<h3>Step 2: Sensitivity Analysis</h3>
 
-```bash
-python model/conversion/sensitivity_analysis.py \
-    --model HuggingFaceTB/SmolVLM-256M-Instruct
-```
+<pre><code>python model/conversion/sensitivity_analysis.py --model HuggingFaceTB/SmolVLM-256M-Instruct</code></pre>
 
-### Step 3: Quantize
+<h3>Step 3: Quantize</h3>
 
-```bash
-python model/conversion/quantize_ternary.py \
-    --model HuggingFaceTB/SmolVLM-256M-Instruct \
-    --alpha 0.7 --mode per_tensor \
-    --export --output ./model/weights/quantized
-```
+<pre><code>python model/conversion/quantize_ternary.py --model HuggingFaceTB/SmolVLM-256M-Instruct --alpha 0.7 --mode per_tensor --export --output ./model/weights/quantized</code></pre>
 
-### Step 4: Validate
+<h3>Step 4: Validate</h3>
 
-```bash
-python model/conversion/validate_quantization.py \
-    --model HuggingFaceTB/SmolVLM-256M-Instruct \
-    --quantized ./model/weights/quantized
-```
+<pre><code>python model/conversion/validate_quantization.py --model HuggingFaceTB/SmolVLM-256M-Instruct --quantized ./model/weights/quantized</code></pre>
 
----
+<hr>
 
-## Expected Results
+<h2>Expected Results</h2>
 
-With default settings (α=0.7):
+<p>With default settings (α=0.7):</p>
 
-- **Memory:** 1024 MB → 64 MB (16× smaller)
-- **VQA Accuracy:** ~71% → ~67% (~4% drop)
-- **Perplexity:** ~15 → ~17 (~13% increase)
-- **Cosine Similarity:** 0.92
+<ul>
+  <li><strong>Memory:</strong> 1024 MB → 64 MB (16× smaller)</li>
+  <li><strong>VQA Accuracy:</strong> ~71% → ~67% (~4% drop)</li>
+  <li><strong>Perplexity:</strong> ~15 → ~17 (~13% increase)</li>
+  <li><strong>Cosine Similarity:</strong> 0.92</li>
+</ul>
 
----
+<hr>
 
-## Repository Structure
+<h2>Repository Structure</h2>
 
-- **model/** — Quantization and validation tools
-- **rtl/** — Verilog source (coming soon)
-- **fpga/** — FPGA prototypes
-- **drivers/** — Linux kernel driver
-- **sdk/** — Python SDK
-- **firmware/** — Card firmware
-- **docs/** — Documentation
+<ul>
+  <li><strong>model/</strong> — Quantization and validation tools</li>
+  <li><strong>rtl/</strong> — Verilog source (coming soon)</li>
+  <li><strong>fpga/</strong> — FPGA prototypes</li>
+  <li><strong>drivers/</strong> — Linux kernel driver</li>
+  <li><strong>sdk/</strong> — Python SDK</li>
+  <li><strong>firmware/</strong> — Card firmware</li>
+  <li><strong>docs/</strong> — Documentation</li>
+</ul>
 
----
+<hr>
 
-## Next Steps
+<h2>Next Steps</h2>
 
 <div class="features-grid">
 <div class="feature-card">

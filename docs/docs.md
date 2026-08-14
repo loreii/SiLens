@@ -11,7 +11,7 @@ permalink: /docs/
 
 <div class="content-wrapper">
 
-## Core Documentation
+<h2>Core Documentation</h2>
 
 <div class="features-grid">
 <div class="feature-card">
@@ -36,153 +36,176 @@ permalink: /docs/
 </div>
 </div>
 
----
+<hr>
 
-## Model Conversion Tools
+<h2>Model Conversion Tools</h2>
 
-Located in `model/conversion/`:
+<p>Located in <code>model/conversion/</code>:</p>
 
-### Quantization Pipeline
+<h3>Quantization Pipeline</h3>
 
-- **analyze_model.py** — Architecture analysis, weight statistics
-- **extract_weights.py** — Extract and organize weights
-- **quantize_ternary.py** — Ternary quantization
-- **calibration.py** — Calibration-aware quantization
-- **mixed_precision.py** — Keep critical layers higher precision
-- **sensitivity_analysis.py** — Layer sensitivity scoring
+<ul>
+  <li><strong>analyze_model.py</strong> — Architecture analysis, weight statistics</li>
+  <li><strong>extract_weights.py</strong> — Extract and organize weights</li>
+  <li><strong>quantize_ternary.py</strong> — Ternary quantization</li>
+  <li><strong>calibration.py</strong> — Calibration-aware quantization</li>
+  <li><strong>mixed_precision.py</strong> — Keep critical layers higher precision</li>
+  <li><strong>sensitivity_analysis.py</strong> — Layer sensitivity scoring</li>
+</ul>
 
-### Validation Tools
+<h3>Validation Tools</h3>
 
-- **validate_quantization.py** — Quality validation
-- **benchmark_suite.py** — VQA, TextVQA benchmarks
-- **perplexity_test.py** — Language model perplexity
-- **visual_qa_test.py** — Visual QA accuracy
-- **compare_outputs.py** — Side-by-side comparison
+<ul>
+  <li><strong>validate_quantization.py</strong> — Quality validation</li>
+  <li><strong>benchmark_suite.py</strong> — VQA, TextVQA benchmarks</li>
+  <li><strong>perplexity_test.py</strong> — Language model perplexity</li>
+  <li><strong>visual_qa_test.py</strong> — Visual QA accuracy</li>
+  <li><strong>compare_outputs.py</strong> — Side-by-side comparison</li>
+</ul>
 
-### Analysis Tools
+<h3>Analysis Tools</h3>
 
-- **weight_visualizer.py** — Distribution plots
-- **sparsity_analyzer.py** — Sparsity patterns
-- **outlier_detector.py** — Outlier detection
+<ul>
+  <li><strong>weight_visualizer.py</strong> — Distribution plots</li>
+  <li><strong>sparsity_analyzer.py</strong> — Sparsity patterns</li>
+  <li><strong>outlier_detector.py</strong> — Outlier detection</li>
+</ul>
 
----
+<hr>
 
-## Hardware Documentation
+<h2>Hardware Documentation</h2>
 
-### FPGA Prototyping
+<h3>FPGA Prototyping</h3>
 
-Located in `fpga/`:
+<p>Located in <code>fpga/</code>:</p>
 
-**Xilinx:**
-- silens_fpga_wrapper.v
-- silens_artix7.xdc
-- silens_kintex7.xdc
-- synth_vivado.tcl
+<p><strong>Xilinx:</strong></p>
+<ul>
+  <li>silens_fpga_wrapper.v</li>
+  <li>silens_artix7.xdc</li>
+  <li>silens_kintex7.xdc</li>
+  <li>synth_vivado.tcl</li>
+</ul>
 
-**Intel:**
-- silens_fpga_wrapper_intel.v
-- silens_arria10.sdc
-- silens_cyclone10.sdc
+<p><strong>Intel:</strong></p>
+<ul>
+  <li>silens_fpga_wrapper_intel.v</li>
+  <li>silens_arria10.sdc</li>
+  <li>silens_cyclone10.sdc</li>
+</ul>
 
-### PCB Design
+<h3>PCB Design</h3>
 
-Located in `pcb/` (coming soon):
-- Schematics
-- Layout files
-- Bill of Materials
-- Assembly instructions
+<p>Located in <code>pcb/</code> (coming soon):</p>
+<ul>
+  <li>Schematics</li>
+  <li>Layout files</li>
+  <li>Bill of Materials</li>
+  <li>Assembly instructions</li>
+</ul>
 
----
+<hr>
 
-## Software Documentation
+<h2>Software Documentation</h2>
 
-### Linux Driver
+<h3>Linux Driver</h3>
 
-Located in `drivers/`:
-- **silens_drv.c** — Main driver
-- **silens_ioctl.h** — IOCTL definitions
-- **Makefile** — Build instructions
+<p>Located in <code>drivers/</code>:</p>
+<ul>
+  <li><strong>silens_drv.c</strong> — Main driver</li>
+  <li><strong>silens_ioctl.h</strong> — IOCTL definitions</li>
+  <li><strong>Makefile</strong> — Build instructions</li>
+</ul>
 
-### Python SDK
+<h3>Python SDK</h3>
 
-```bash
-pip install silens
-```
+<p>Install:</p>
+<pre><code>pip install silens</code></pre>
 
-```python
-import silens
+<p>Usage:</p>
+<pre><code>import silens
+from PIL import Image
 
 device = silens.Device()
-
-from PIL import Image
 image = Image.open("photo.jpg")
 
 # Describe image
 result = device.describe(image)
 
 # Visual QA
-answer = device.ask(image, "What color is the car?")
-```
+answer = device.ask(image, "What color is the car?")</code></pre>
 
-### Firmware
+<h3>Firmware</h3>
 
-Located in `firmware/`:
-- **main.c** — Main application
-- **startup.S** — Startup code
-- **linker.ld** — Linker script
+<p>Located in <code>firmware/</code>:</p>
+<ul>
+  <li><strong>main.c</strong> — Main application</li>
+  <li><strong>startup.S</strong> — Startup code</li>
+  <li><strong>linker.ld</strong> — Linker script</li>
+</ul>
 
----
+<hr>
 
-## Specifications
+<h2>Specifications</h2>
 
-### ASIC
+<h3>ASIC</h3>
 
-- **Model:** SmolVLM-256M (246M parameters)
-- **Vision:** SigLIP-B/16 (93M)
-- **Language:** SmolLM2-135M (135M)
-- **Process:** SkyWater SKY130 (130nm)
-- **Die Size:** ~800mm²
-- **Clock:** 100-200 MHz
+<ul>
+  <li><strong>Model:</strong> SmolVLM-256M (246M parameters)</li>
+  <li><strong>Vision:</strong> SigLIP-B/16 (93M)</li>
+  <li><strong>Language:</strong> SmolLM2-135M (135M)</li>
+  <li><strong>Process:</strong> SkyWater SKY130 (130nm)</li>
+  <li><strong>Die Size:</strong> ~800mm²</li>
+  <li><strong>Clock:</strong> 100-200 MHz</li>
+</ul>
 
-### Card
+<h3>Card</h3>
 
-- **Interface:** PCIe 3.0 x4
-- **Form Factor:** Half-height, half-length
-- **Dimensions:** 168mm × 69mm
-- **Power:** 25W TDP (slot-powered)
-- **Cooling:** Passive heatsink
+<ul>
+  <li><strong>Interface:</strong> PCIe 3.0 x4</li>
+  <li><strong>Form Factor:</strong> Half-height, half-length</li>
+  <li><strong>Dimensions:</strong> 168mm × 69mm</li>
+  <li><strong>Power:</strong> 25W TDP (slot-powered)</li>
+  <li><strong>Cooling:</strong> Passive heatsink</li>
+</ul>
 
-### Software Support
+<h3>Software Support</h3>
 
-- **Linux:** Full support
-- **Windows:** Planned
-- **macOS:** Not supported (no PCIe)
-- **Docker:** Official images
+<ul>
+  <li><strong>Linux:</strong> Full support</li>
+  <li><strong>Windows:</strong> Planned</li>
+  <li><strong>macOS:</strong> Not supported (no PCIe)</li>
+  <li><strong>Docker:</strong> Official images</li>
+</ul>
 
----
+<hr>
 
-## Contributing
+<h2>Contributing</h2>
 
-See [CONTRIBUTING.md](https://github.com/loreii/SiLens/blob/main/CONTRIBUTING.md)
+<p>See <a href="https://github.com/loreii/SiLens/blob/main/CONTRIBUTING.md" target="_blank">CONTRIBUTING.md</a></p>
 
-### Areas Needing Help
+<h3>Areas Needing Help</h3>
 
-- RTL design for transformer blocks
-- FPGA prototyping
-- PCB design review
-- Driver development
-- Documentation
+<ul>
+  <li>RTL design for transformer blocks</li>
+  <li>FPGA prototyping</li>
+  <li>PCB design review</li>
+  <li>Driver development</li>
+  <li>Documentation</li>
+</ul>
 
----
+<hr>
 
-## License
+<h2>License</h2>
 
-Apache License 2.0
+<p>Apache License 2.0</p>
 
-### Third-Party
+<h3>Third-Party</h3>
 
-- **SmolVLM-256M** — Apache 2.0 (Hugging Face)
-- **SkyWater SKY130** — Apache 2.0 (Google/SkyWater)
-- **OpenLane** — Apache 2.0 (Efabless)
+<ul>
+  <li><strong>SmolVLM-256M</strong> — Apache 2.0 (Hugging Face)</li>
+  <li><strong>SkyWater SKY130</strong> — Apache 2.0 (Google/SkyWater)</li>
+  <li><strong>OpenLane</strong> — Apache 2.0 (Efabless)</li>
+</ul>
 
 </div>
