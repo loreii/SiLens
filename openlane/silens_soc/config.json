@@ -1,0 +1,102 @@
+{
+    "//": "=======================================================================",
+    "//": "SiLens SoC - OpenLane Configuration",
+    "//": "Target: 800mm² (28.3mm × 28.3mm) full-custom SKY130 design",
+    "//": "=======================================================================",
+    
+    "DESIGN_NAME": "silens_soc",
+    "VERILOG_FILES": [
+        "dir::../../rtl/top/silens_soc.v",
+        "dir::../../rtl/core/silens_vlm_core.v",
+        "dir::../../rtl/vision/vision_encoder_top.v",
+        "dir::../../rtl/llm/llm_decoder_top.v",
+        "dir::../../rtl/memory/ddr3_controller.v",
+        "dir::../../rtl/interfaces/silens_host_interface.v",
+        "dir::../../rtl/interfaces/silens_spi_slave.v",
+        "dir::../../rtl/common/clock_gen.v",
+        "dir::../../rtl/common/reset_sync.v",
+        "dir::../../rtl/common/ternary_mac.v",
+        "dir::../../rtl/common/layer_norm.v",
+        "dir::../../rtl/common/rms_norm.v",
+        "dir::../../rtl/common/softmax_approx.v",
+        "dir::../../rtl/common/gelu_approx.v",
+        "dir::../../rtl/llm/projector.v"
+    ],
+    
+    "//": "Clock Configuration",
+    "CLOCK_PORT": "clk_ref",
+    "CLOCK_PERIOD": 10.0,
+    "//": "10ns = 100 MHz (conservative for 800mm² die)",
+    
+    "//": "Die/Core Area Configuration",
+    "//": "800mm² = 28284µm × 28284µm (28.3mm square)",
+    "//": "Using 26mm × 30.77mm = 800mm² to fit reticle (26×32mm)",
+    "FP_SIZING": "absolute",
+    "DIE_AREA": "0 0 26000 30770",
+    "CORE_AREA": "100 100 25900 30670",
+    "//": "Core utilization ~35% to leave room for routing",
+    
+    "//": "Floorplan Configuration",
+    "FP_PIN_ORDER_CFG": "dir::pin_order.cfg",
+    "FP_PDN_CORE_RING": true,
+    "FP_PDN_ENABLE_RAILS": true,
+    "FP_PDN_MULTILAYER": true,
+    
+    "//": "Placement Configuration",
+    "PL_TARGET_DENSITY": 0.35,
+    "//": "Lower density for large die - better timing closure",
+    "PL_BASIC_PLACEMENT": false,
+    "PL_SKIP_INITIAL_PLACEMENT": false,
+    "PL_RANDOM_GLB_PLACEMENT": false,
+    "PL_RANDOM_INITIAL_PLACEMENT": false,
+    "PL_ROUTABILITY_DRIVEN": true,
+    "PL_TIME_DRIVEN": true,
+    
+    "//": "Synthesis Configuration",
+    "SYNTH_STRATEGY": "AREA 0",
+    "//": "Prioritize area over speed - we have plenty of silicon",
+    "SYNTH_MAX_FANOUT": 8,
+    "SYNTH_BUFFERING": true,
+    "SYNTH_SIZING": true,
+    "SYNTH_READ_BLACKBOX_LIB": true,
+    
+    "//": "Clock Tree Synthesis",
+    "CTS_TARGET_SKEW": 200,
+    "//": "200ps skew target - relaxed for large die",
+    "CTS_SINK_CLUSTERING_SIZE": 25,
+    "CTS_SINK_CLUSTERING_MAX_DIAMETER": 50,
+    
+    "//": "Routing Configuration",
+    "GRT_ADJUSTMENT": 0.15,
+    "GRT_ALLOW_CONGESTION": false,
+    "GRT_OVERFLOW_ITERS": 200,
+    "ROUTING_CORES": 8,
+    
+    "//": "Signoff Configuration",
+    "RUN_KLAYOUT_XOR": false,
+    "//": "Disable for large design - very slow",
+    "QUIT_ON_TIMING_VIOLATIONS": false,
+    "QUIT_ON_SETUP_VIOLATIONS": false,
+    "QUIT_ON_HOLD_VIOLATIONS": false,
+    "//": "Allow violations for initial synthesis exploration",
+    
+    "//": "Power Configuration",
+    "VDD_NETS": ["vccd1"],
+    "GND_NETS": ["vssd1"],
+    "VDD_PIN": "vccd1",
+    "GND_PIN": "vssd1",
+    
+    "//": "Technology",
+    "PDK": "sky130A",
+    "STD_CELL_LIBRARY": "sky130_fd_sc_hd",
+    
+    "//": "Macros (DDR PHY, SRAM blocks would be defined here)",
+    "//": "EXTRA_LEFS": [],
+    "//": "EXTRA_GDS_FILES": [],
+    
+    "//": "Custom defines",
+    "VERILOG_DEFINES": [
+        "SYNTHESIS_SKY130",
+        "SILENS_800MM2"
+    ]
+}

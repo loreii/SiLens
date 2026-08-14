@@ -130,6 +130,21 @@ module silens_top #(
     assign seq_start_core   = seq_start_sync[1] & ~seq_start_sync[2];
     assign gen_start_core    = gen_start_sync[1] & ~gen_start_sync[2];
     
+    // =========================================================================
+    // Control FSM State Declarations (must be before synchronizer)
+    // =========================================================================
+    
+    localparam STATE_IDLE       = 4'd0;
+    localparam STATE_VISION     = 4'd1;
+    localparam STATE_PROJECT    = 4'd2;
+    localparam STATE_LLM_VISION = 4'd3;
+    localparam STATE_LLM_TEXT   = 4'd4;
+    localparam STATE_GENERATE   = 4'd5;
+    localparam STATE_DONE       = 4'd6;
+    localparam STATE_ERROR      = 4'd7;
+    
+    reg [3:0] state;
+
     // Synchronize status signals from core domain to PCIe domain
     reg [1:0] vision_busy_sync;
     reg [1:0] llm_busy_sync;
@@ -146,22 +161,6 @@ module silens_top #(
             error_sync       <= {error_sync[0], (state == STATE_ERROR)};
         end
     end
-
-
-    // =========================================================================
-    // Control FSM
-    // =========================================================================
-    
-    localparam STATE_IDLE       = 4'd0;
-    localparam STATE_VISION     = 4'd1;
-    localparam STATE_PROJECT    = 4'd2;
-    localparam STATE_LLM_VISION = 4'd3;
-    localparam STATE_LLM_TEXT   = 4'd4;
-    localparam STATE_GENERATE   = 4'd5;
-    localparam STATE_DONE       = 4'd6;
-    localparam STATE_ERROR      = 4'd7;
-    
-    reg [3:0] state;
     
     // =========================================================================
     // Performance counters

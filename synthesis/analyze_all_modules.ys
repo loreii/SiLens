@@ -1,0 +1,74 @@
+# =============================================================================
+# SiLens FPGA Logic Cell Analysis - Full Design
+# =============================================================================
+# This script analyzes all RTL modules to determine exact logic cell count
+# Run with: yosys -s analyze_all_modules.ys > cell_count_report.txt 2>&1
+# =============================================================================
+
+# Read all common modules
+read_verilog -sv ../rtl/common/popcount.v
+read_verilog -sv ../rtl/common/ternary_mac.v
+read_verilog -sv ../rtl/common/binary_dot_product.v
+read_verilog -sv ../rtl/common/gelu_approx.v
+read_verilog -sv ../rtl/common/layer_norm.v
+read_verilog -sv ../rtl/common/rms_norm.v
+read_verilog -sv ../rtl/common/softmax_approx.v
+read_verilog -sv ../rtl/common/simd_vector_unit.v
+read_verilog -sv ../rtl/common/power_controller.v
+read_verilog -sv ../rtl/common/axi_interface.v
+
+# Read memory modules
+read_verilog -sv ../rtl/memory/activation_buffer.v
+read_verilog -sv ../rtl/memory/embedding_rom.v
+read_verilog -sv ../rtl/memory/kv_cache.v
+read_verilog -sv ../rtl/memory/memory_controller.v
+
+# Read vision encoder modules
+read_verilog -sv ../rtl/vision_encoder/patch_embed.v
+read_verilog -sv ../rtl/vision_encoder/vit_attention.v
+read_verilog -sv ../rtl/vision_encoder/vit_mlp.v
+read_verilog -sv ../rtl/vision_encoder/vit_block.v
+read_verilog -sv ../rtl/vision_encoder/vision_encoder.v
+
+# Read projector
+read_verilog -sv ../rtl/projector/projector.v
+
+# Read language model modules
+read_verilog -sv ../rtl/language_model/llm_attention.v
+read_verilog -sv ../rtl/language_model/llm_mlp.v
+read_verilog -sv ../rtl/language_model/llm_block.v
+read_verilog -sv ../rtl/language_model/llm_head.v
+read_verilog -sv ../rtl/language_model/language_model.v
+
+# Read PCIe modules
+read_verilog -sv ../rtl/pcie/register_file.v
+read_verilog -sv ../rtl/pcie/dma_engine.v
+read_verilog -sv ../rtl/pcie/pcie_wrapper.v
+
+# Read top level
+read_verilog -sv ../rtl/top/silens_top.v
+
+# Hierarchy check
+hierarchy -check
+
+# Process design
+proc
+
+# Flatten for accurate cell count
+flatten
+
+# Optimize
+opt -full
+
+# Technology mapping to generic cells
+techmap
+
+# Final optimization
+opt -full
+
+# Print detailed statistics
+stat
+
+echo "=============================================="
+echo "FPGA LOGIC CELL ANALYSIS COMPLETE"
+echo "=============================================="

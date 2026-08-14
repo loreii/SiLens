@@ -1,0 +1,71 @@
+{
+    "//": "=======================================================================",
+    "//": "Attention Head Block - Level 1 Primitive",
+    "//": "=======================================================================",
+    "//": "Single attention head computation: Attention(Q,K,V) = softmax(Q·K^T / sqrt(d)) · V",
+    "//": "Reused 414× total across the SoC (144 in vision encoder, 270 in LLM).",
+    "//": "Target: ~2mm² on SKY130 (1400µm × 1400µm)",
+    
+    "DESIGN_NAME": "attention_head",
+    
+    "VERILOG_FILES": [
+        "dir::src/attention_head.v"
+    ],
+    
+    "//": "=== Clock ===",
+    "CLOCK_PORT": "clk",
+    "CLOCK_PERIOD": 10.0,
+    "//": "10ns = 100 MHz target frequency",
+    
+    "//": "=== Die Area ===",
+    "//": "Target: ~2mm² = 1400µm × 1400µm",
+    "FP_SIZING": "absolute",
+    "DIE_AREA": "0 0 1400 1400",
+    "CORE_AREA": "20 20 1380 1380",
+    
+    "//": "=== This is a MACRO, not top-level ===",
+    "DESIGN_IS_CORE": false,
+    
+    "//": "=== Placement ===",
+    "PL_TARGET_DENSITY": 0.50,
+    "PL_ROUTABILITY_DRIVEN": true,
+    "PL_TIME_DRIVEN": true,
+    
+    "//": "=== Synthesis ===",
+    "SYNTH_STRATEGY": "AREA 2",
+    "SYNTH_MAX_FANOUT": 6,
+    "SYNTH_BUFFERING": true,
+    
+    "//": "=== CTS ===",
+    "CTS_TARGET_SKEW": 100,
+    "CTS_SINK_CLUSTERING_SIZE": 25,
+    
+    "//": "=== Routing ===",
+    "GRT_ADJUSTMENT": 0.25,
+    "GRT_OVERFLOW_ITERS": 100,
+    
+    "//": "=== Signoff - Must be strict for Level 1 ===",
+    "RUN_KLAYOUT_XOR": true,
+    "RUN_MAGIC_DRC": true,
+    "RUN_LVS": true,
+    "QUIT_ON_DRC_ERROR": true,
+    "QUIT_ON_LVS_ERROR": true,
+    "QUIT_ON_TIMING_VIOLATIONS": false,
+    "//": "Allow timing violations initially, fix iteratively",
+    
+    "//": "=== Technology ===",
+    "PDK": "sky130A",
+    "STD_CELL_LIBRARY": "sky130_fd_sc_hd",
+    
+    "//": "=== Antenna protection ===",
+    "DIODE_INSERTION_STRATEGY": 3,
+    "//": "Strategy 3: insert diodes preventively for long routes",
+    
+    "//": "=== Outputs for reuse ===",
+    "GENERATE_FINAL_SUMMARY_REPORT": true,
+    
+    "VERILOG_DEFINES": [
+        "SYNTHESIS_SKY130",
+        "LEVEL1_MACRO"
+    ]
+}

@@ -1,0 +1,80 @@
+{
+    "//": "=======================================================================",
+    "//": "Embedding Block - Level 2 Block",
+    "//": "=======================================================================",
+    "//": "Token and Position Embeddings for LLM decoder.",
+    "//": "Combines token embedding (from external DRAM) + position embedding (on-chip/SRAM)",
+    "//": "Output = token_embedding + position_embedding (576-dimensional vectors)",
+    "//": "",
+    "//": "Architecture:",
+    "//": "- Token embedding: Vocabulary 49152 → 576-dim (27MB, external DRAM)",
+    "//": "- Position embedding: 2048 positions → 576-dim (1.1MB, on-chip ROM or fast SRAM)",
+    "//": "",
+    "//": "Target: ~15mm² on SKY130 (3900µm × 3900µm)",
+    
+    "DESIGN_NAME": "embedding_block",
+    
+    "VERILOG_FILES": [
+        "dir::src/embedding_block.v"
+    ],
+    
+    "//": "=== Clock ===",
+    "CLOCK_PORT": "clk",
+    "CLOCK_PERIOD": 10.0,
+    "//": "10ns = 100 MHz target frequency",
+    
+    "//": "=== Die Area ===",
+    "//": "Target: ~15mm² = 3900µm × 3900µm",
+    "FP_SIZING": "absolute",
+    "DIE_AREA": "0 0 3900 3900",
+    "CORE_AREA": "30 30 3870 3870",
+    
+    "//": "=== This is a MACRO, not top-level ===",
+    "DESIGN_IS_CORE": false,
+    
+    "//": "=== Placement ===",
+    "PL_TARGET_DENSITY": 0.45,
+    "PL_ROUTABILITY_DRIVEN": true,
+    "PL_TIME_DRIVEN": true,
+    
+    "//": "=== Synthesis ===",
+    "SYNTH_STRATEGY": "AREA 2",
+    "SYNTH_MAX_FANOUT": 8,
+    "SYNTH_BUFFERING": true,
+    
+    "//": "=== CTS ===",
+    "CTS_TARGET_SKEW": 150,
+    "CTS_SINK_CLUSTERING_SIZE": 30,
+    
+    "//": "=== Routing ===",
+    "GRT_ADJUSTMENT": 0.25,
+    "GRT_OVERFLOW_ITERS": 120,
+    
+    "//": "=== Memory macros ===",
+    "//": "Position embedding ROM will be synthesized from registers initially",
+    "//": "For production, replace with compiled SRAM macros",
+    
+    "//": "=== Signoff ===",
+    "RUN_KLAYOUT_XOR": true,
+    "RUN_MAGIC_DRC": true,
+    "RUN_LVS": true,
+    "QUIT_ON_DRC_ERROR": true,
+    "QUIT_ON_LVS_ERROR": true,
+    "QUIT_ON_TIMING_VIOLATIONS": false,
+    "//": "Allow timing violations initially, fix iteratively",
+    
+    "//": "=== Technology ===",
+    "PDK": "sky130A",
+    "STD_CELL_LIBRARY": "sky130_fd_sc_hd",
+    
+    "//": "=== Antenna protection ===",
+    "DIODE_INSERTION_STRATEGY": 3,
+    
+    "//": "=== Outputs for integration at Level 3 ===",
+    "GENERATE_FINAL_SUMMARY_REPORT": true,
+    
+    "VERILOG_DEFINES": [
+        "SYNTHESIS_SKY130",
+        "LEVEL2_MACRO"
+    ]
+}

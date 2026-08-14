@@ -1,0 +1,145 @@
+{
+    "//": "=======================================================================",
+    "//": "Vision Transformer Block - Level 2 Hierarchical Block",
+    "//": "=======================================================================",
+    "//": "Complete Vision Transformer layer for SigLIP-B/16 vision encoder.",
+    "//": "Architecture: input → LN → Multi-Head Attention (12 heads) → +residual",
+    "//": "                   → LN → MLP (768→3072→768 GELU) → +residual → output",
+    "//": "",
+    "//": "Reused 12× in vision encoder subsystem.",
+    "//": "Target: ~20mm² on SKY130 (4500µm × 4500µm)",
+    "//": "",
+    "//": "Level 1 macro dependencies:",
+    "//": "  - 2× layer_norm_block (768-dim)",
+    "//": "  - 12× attention_head (head_dim=64)",
+    "//": "  - 1× mlp_block (768→3072→768)",
+    
+    "DESIGN_NAME": "transformer_block_vision",
+    
+    "VERILOG_FILES": [
+        "dir::src/transformer_block_vision.v"
+    ],
+    
+    "//": "=== Clock ===",
+    "CLOCK_PORT": "clk",
+    "CLOCK_PERIOD": 10.0,
+    "//": "10ns = 100 MHz target frequency",
+    
+    "//": "=== Die Area ===",
+    "//": "Target: ~20mm² = 4500µm × 4500µm",
+    "FP_SIZING": "absolute",
+    "DIE_AREA": "0 0 4500 4500",
+    "CORE_AREA": "40 40 4460 4460",
+    
+    "//": "=== This is a MACRO block (Level 2) ===",
+    "DESIGN_IS_CORE": false,
+    
+    "//": "=== Level 1 Macro Placement ===",
+    "//": "Instantiate hardened Level 1 blocks as macros",
+    "MACROS": {
+        "layer_norm_1": {
+            "gds": ["dir::../../level1/layer_norm_block/runs/latest/results/final/gds/layer_norm_block.gds"],
+            "lef": ["dir::../../level1/layer_norm_block/runs/latest/results/final/lef/layer_norm_block.lef"],
+            "instances": {
+                "u_layer_norm_pre_attn": {
+                    "location": [100, 100],
+                    "orientation": "N"
+                }
+            }
+        },
+        "layer_norm_2": {
+            "gds": ["dir::../../level1/layer_norm_block/runs/latest/results/final/gds/layer_norm_block.gds"],
+            "lef": ["dir::../../level1/layer_norm_block/runs/latest/results/final/lef/layer_norm_block.lef"],
+            "instances": {
+                "u_layer_norm_pre_mlp": {
+                    "location": [100, 2400],
+                    "orientation": "N"
+                }
+            }
+        },
+        "attention_head": {
+            "gds": ["dir::../../level1/attention_head/runs/latest/results/final/gds/attention_head.gds"],
+            "lef": ["dir::../../level1/attention_head/runs/latest/results/final/lef/attention_head.lef"],
+            "instances": {
+                "u_attn_head_0":  {"location": [900,  100], "orientation": "N"},
+                "u_attn_head_1":  {"location": [2400, 100], "orientation": "N"},
+                "u_attn_head_2":  {"location": [3900, 100], "orientation": "N"},
+                "u_attn_head_3":  {"location": [900,  1600], "orientation": "N"},
+                "u_attn_head_4":  {"location": [2400, 1600], "orientation": "N"},
+                "u_attn_head_5":  {"location": [3900, 1600], "orientation": "N"},
+                "u_attn_head_6":  {"location": [900,  3100], "orientation": "N"},
+                "u_attn_head_7":  {"location": [2400, 3100], "orientation": "N"},
+                "u_attn_head_8":  {"location": [3900, 3100], "orientation": "N"},
+                "u_attn_head_9":  {"location": [900,  4600], "orientation": "N"},
+                "u_attn_head_10": {"location": [2400, 4600], "orientation": "N"},
+                "u_attn_head_11": {"location": [3900, 4600], "orientation": "N"}
+            }
+        },
+        "mlp_block": {
+            "gds": ["dir::../../level1/mlp_block/runs/latest/results/final/gds/mlp_block.gds"],
+            "lef": ["dir::../../level1/mlp_block/runs/latest/results/final/lef/mlp_block.lef"],
+            "instances": {
+                "u_mlp": {
+                    "location": [100, 3200],
+                    "orientation": "N"
+                }
+            }
+        }
+    },
+    
+    "//": "=== Placement ===",
+    "PL_TARGET_DENSITY": 0.45,
+    "PL_ROUTABILITY_DRIVEN": true,
+    "PL_TIME_DRIVEN": true,
+    "PL_MACRO_HALO": "50 50",
+    "PL_MACRO_CHANNEL": "100 100",
+    
+    "//": "=== Synthesis ===",
+    "SYNTH_STRATEGY": "AREA 2",
+    "SYNTH_MAX_FANOUT": 8,
+    "SYNTH_BUFFERING": true,
+    "//": "Area-optimized synthesis for hierarchical block",
+    
+    "//": "=== CTS ===",
+    "CTS_TARGET_SKEW": 200,
+    "CTS_SINK_CLUSTERING_SIZE": 30,
+    "CTS_CLK_BUFFER_LIST": "sky130_fd_sc_hd__clkbuf_8 sky130_fd_sc_hd__clkbuf_4",
+    "//": "Relaxed CTS for large hierarchical block with macro boundaries",
+    
+    "//": "=== Routing ===",
+    "GRT_ADJUSTMENT": 0.20,
+    "GRT_OVERFLOW_ITERS": 150,
+    "DRT_OPT_ITERS": 64,
+    "//": "More routing resources for dense interconnect between macros",
+    
+    "//": "=== Power Distribution Network ===",
+    "FP_PDN_VOFFSET": 5,
+    "FP_PDN_HOFFSET": 5,
+    "FP_PDN_VPITCH": 100,
+    "FP_PDN_HPITCH": 100,
+    
+    "//": "=== Signoff ===",
+    "RUN_KLAYOUT_XOR": true,
+    "RUN_MAGIC_DRC": true,
+    "RUN_LVS": true,
+    "QUIT_ON_DRC_ERROR": true,
+    "QUIT_ON_LVS_ERROR": true,
+    "QUIT_ON_TIMING_VIOLATIONS": false,
+    "//": "Allow timing violations initially, fix iteratively",
+    
+    "//": "=== Technology ===",
+    "PDK": "sky130A",
+    "STD_CELL_LIBRARY": "sky130_fd_sc_hd",
+    
+    "//": "=== Antenna protection ===",
+    "DIODE_INSERTION_STRATEGY": 3,
+    "//": "Strategy 3: insert diodes preventively for long macro-to-macro routes",
+    
+    "//": "=== Outputs for Level 3 integration ===",
+    "GENERATE_FINAL_SUMMARY_REPORT": true,
+    
+    "VERILOG_DEFINES": [
+        "SYNTHESIS_SKY130",
+        "LEVEL2_MACRO"
+    ]
+}

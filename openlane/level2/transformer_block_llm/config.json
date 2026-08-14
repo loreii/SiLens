@@ -1,0 +1,112 @@
+{
+    "//": "=======================================================================",
+    "//": "Transformer Block LLM - Level 2 Synthesis Block",
+    "//": "=======================================================================",
+    "//": "Complete LLM transformer layer for SmolLM2-135M architecture.",
+    "//": "Composes Level 1 primitives: 2× RMS Norm, 9× Attention Heads, 1× MLP Block",
+    "//": "",
+    "//": "Architecture: input → rms_norm_1 → multi_head_attention(9 heads) → +residual_1",
+    "//": "                    → rms_norm_2 → mlp_block → +residual_2 → output",
+    "//": "",
+    "//": "Dimensions: hidden=576, heads=9, head_dim=64, mlp_hidden=1536",
+    "//": "Target: ~13mm² on SKY130 (3600µm × 3600µm)",
+    "//": "Reuse: 30× in LLM subsystem",
+    
+    "DESIGN_NAME": "transformer_block_llm",
+    
+    "VERILOG_FILES": [
+        "dir::src/transformer_block_llm.v"
+    ],
+    
+    "//": "=== Clock ===",
+    "CLOCK_PORT": "clk",
+    "CLOCK_PERIOD": 10.0,
+    "//": "10ns = 100 MHz target frequency",
+    
+    "//": "=== Die Area ===",
+    "//": "Target: ~13mm² = 3600µm × 3600µm",
+    "FP_SIZING": "absolute",
+    "DIE_AREA": "0 0 3600 3600",
+    "CORE_AREA": "40 40 3560 3560",
+    
+    "//": "=== This is a MACRO for Level 3 integration ===",
+    "DESIGN_IS_CORE": false,
+    
+    "//": "=== Level 1 Macros to integrate ===",
+    "//": "These will be provided as hardened macros from Level 1 synthesis",
+    "MACROS": {
+        "rms_norm_block": {
+            "gds": ["dir::../../level1/rms_norm_block/runs/latest/results/final/gds/rms_norm_block.gds"],
+            "lef": ["dir::../../level1/rms_norm_block/runs/latest/results/final/lef/rms_norm_block.lef"],
+            "verilog_blackbox": ["dir::../../level1/rms_norm_block/src/rms_norm_block.v"],
+            "nl": ["dir::../../level1/rms_norm_block/runs/latest/results/final/nl/rms_norm_block.nl.v"]
+        },
+        "attention_head": {
+            "gds": ["dir::../../level1/attention_head/runs/latest/results/final/gds/attention_head.gds"],
+            "lef": ["dir::../../level1/attention_head/runs/latest/results/final/lef/attention_head.lef"],
+            "verilog_blackbox": ["dir::../../level1/attention_head/src/attention_head.v"],
+            "nl": ["dir::../../level1/attention_head/runs/latest/results/final/nl/attention_head.nl.v"]
+        },
+        "mlp_block": {
+            "gds": ["dir::../../level1/mlp_block/runs/latest/results/final/gds/mlp_block.gds"],
+            "lef": ["dir::../../level1/mlp_block/runs/latest/results/final/lef/mlp_block.lef"],
+            "verilog_blackbox": ["dir::../../level1/mlp_block/src/mlp_block.v"],
+            "nl": ["dir::../../level1/mlp_block/runs/latest/results/final/nl/mlp_block.nl.v"]
+        }
+    },
+    
+    "//": "=== Macro Placement ===",
+    "//": "Manual placement for optimal dataflow: RMS1 → Attention → RMS2 → MLP",
+    "MACRO_PLACEMENT_CFG": "dir::macro_placement.cfg",
+    
+    "//": "=== Placement ===",
+    "PL_TARGET_DENSITY": 0.45,
+    "PL_ROUTABILITY_DRIVEN": true,
+    "PL_TIME_DRIVEN": true,
+    "//": "Lower density for macro integration routing",
+    
+    "//": "=== Synthesis ===",
+    "SYNTH_STRATEGY": "AREA 2",
+    "SYNTH_MAX_FANOUT": 8,
+    "SYNTH_BUFFERING": true,
+    "//": "Area optimized, synthesize glue logic only",
+    
+    "//": "=== CTS ===",
+    "CTS_TARGET_SKEW": 200,
+    "CTS_SINK_CLUSTERING_SIZE": 30,
+    "//": "Relaxed skew for larger block",
+    
+    "//": "=== Routing ===",
+    "GRT_ADJUSTMENT": 0.30,
+    "GRT_OVERFLOW_ITERS": 150,
+    "//": "More routing resources for macro interconnect",
+    
+    "//": "=== Signoff ===",
+    "RUN_KLAYOUT_XOR": true,
+    "RUN_MAGIC_DRC": true,
+    "RUN_LVS": true,
+    "QUIT_ON_DRC_ERROR": true,
+    "QUIT_ON_LVS_ERROR": true,
+    "QUIT_ON_TIMING_VIOLATIONS": false,
+    "//": "Clean signoff for Level 2 macro",
+    
+    "//": "=== Technology ===",
+    "PDK": "sky130A",
+    "STD_CELL_LIBRARY": "sky130_fd_sc_hd",
+    
+    "//": "=== Antenna protection ===",
+    "DIODE_INSERTION_STRATEGY": 3,
+    
+    "//": "=== Power ===",
+    "FP_PDN_CORE_RING": true,
+    "FP_PDN_ENABLE_RAILS": true,
+    "//": "Full power distribution for large block",
+    
+    "//": "=== Outputs for Level 3 reuse ===",
+    "GENERATE_FINAL_SUMMARY_REPORT": true,
+    
+    "VERILOG_DEFINES": [
+        "SYNTHESIS_SKY130",
+        "LEVEL2_MACRO"
+    ]
+}

@@ -27,7 +27,11 @@ module patch_embed #(
     parameter EMBED_DIM   = 768,                    // Output embedding dimension
     parameter ACT_WIDTH   = 8,                      // Activation bit width
     parameter ACC_WIDTH   = 32,                     // Accumulator bit width
-    parameter PARALLEL    = 16                      // Parallel MAC operations
+    parameter PARALLEL    = 16,                     // Parallel MAC operations
+    // Derived parameters (must be in parameter list for port sizes)
+    parameter GRID_SIZE   = IMG_SIZE / PATCH_SIZE,  // 24
+    parameter NUM_PATCHES = GRID_SIZE * GRID_SIZE,  // 576
+    parameter PATCH_PIXELS = PATCH_SIZE * PATCH_SIZE * IN_CHANNELS // 768
 )(
     input  wire                         clk,
     input  wire                         rst_n,
@@ -43,7 +47,7 @@ module patch_embed #(
     // Ternary projection weights (hardwired, but exposed for flexibility)
     // Projection: (PATCH_SIZE * PATCH_SIZE * IN_CHANNELS) -> EMBED_DIM
     // 768 -> 768, weights are 768 * 768 * 2 bits = 1.125 Mbit
-    input  wire [EMBED_DIM*PATCH_SIZE*PATCH_SIZE*IN_CHANNELS*2-1:0] proj_weights,
+    input  wire [EMBED_DIM*PATCH_PIXELS*2-1:0] proj_weights,
     
     // Positional embeddings (fixed, loaded at init)
     input  wire [NUM_PATCHES*EMBED_DIM*ACT_WIDTH-1:0] pos_embed,
@@ -56,12 +60,8 @@ module patch_embed #(
 );
 
     // =========================================================================
-    // Local parameters
+    // Local parameters (for internal use only)
     // =========================================================================
-    
-    localparam GRID_SIZE = IMG_SIZE / PATCH_SIZE;   // 24
-    localparam NUM_PATCHES = GRID_SIZE * GRID_SIZE; // 576
-    localparam PATCH_PIXELS = PATCH_SIZE * PATCH_SIZE * IN_CHANNELS; // 768
     
     localparam NUM_PROJ_ITERS = (PATCH_PIXELS + PARALLEL - 1) / PARALLEL;
     

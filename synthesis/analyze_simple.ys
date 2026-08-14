@@ -1,0 +1,13 @@
+# Analyze simple core modules only
+
+read_verilog -sv ../rtl/common/popcount.v
+read_verilog -sv ../rtl/common/ternary_mac.v
+
+# Process
+proc
+opt
+techmap
+opt
+
+# Statistics
+stat

@@ -1,0 +1,14 @@
+# Projector module analysis
+read_verilog -sv ../rtl/common/popcount.v
+read_verilog -sv ../rtl/common/ternary_mac.v
+read_verilog -sv ../rtl/common/binary_dot_product.v
+read_verilog -sv ../rtl/common/gelu_approx.v
+read_verilog -sv ../rtl/common/layer_norm.v
+read_verilog -sv ../rtl/projector/projector.v
+
+hierarchy -check -top projector
+proc
+opt
+techmap
+opt
+stat

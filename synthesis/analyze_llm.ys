@@ -1,0 +1,19 @@
+# Language model modules analysis
+read_verilog -sv ../rtl/common/popcount.v
+read_verilog -sv ../rtl/common/ternary_mac.v
+read_verilog -sv ../rtl/common/binary_dot_product.v
+read_verilog -sv ../rtl/common/gelu_approx.v
+read_verilog -sv ../rtl/common/rms_norm.v
+read_verilog -sv ../rtl/common/softmax_approx.v
+read_verilog -sv ../rtl/language_model/llm_attention.v
+read_verilog -sv ../rtl/language_model/llm_mlp.v
+read_verilog -sv ../rtl/language_model/llm_block.v
+read_verilog -sv ../rtl/language_model/llm_head.v
+read_verilog -sv ../rtl/language_model/language_model.v
+
+hierarchy -check -top language_model
+proc
+opt
+techmap
+opt
+stat

@@ -1,0 +1,74 @@
+
+ /----------------------------------------------------------------------------\
+ |  yosys -- Yosys Open SYnthesis Suite                                       |
+ |  Copyright (C) 2012 - 2026  Claire Xenia Wolf <claire@yosyshq.com>         |
+ |  Distributed under an ISC-like license, type "license" to see terms        |
+ \----------------------------------------------------------------------------/
+ Yosys 0.68+post (git sha1 c12172fbae8af5e20f6fb52e3d4e92d56ed587b6, Release, AppleClang clang++ 17.0.0.17000604)
+
+-- Executing script file `yosys_analysis.ys' --
+
+1. Executing Verilog-2005 frontend: ../rtl/common/popcount.v
+Parsing SystemVerilog input from `../rtl/common/popcount.v' to AST representation.
+Generating RTLIL representation for module `\popcount'.
+Successfully finished Verilog frontend.
+
+2. Executing Verilog-2005 frontend: ../rtl/common/ternary_mac.v
+Parsing SystemVerilog input from `../rtl/common/ternary_mac.v' to AST representation.
+Generating RTLIL representation for module `\ternary_mac'.
+Warning: Replacing memory \mac_results with list of registers. See ../rtl/common/ternary_mac.v:86
+Successfully finished Verilog frontend.
+
+3. Executing Verilog-2005 frontend: ../rtl/common/binary_dot_product.v
+Parsing SystemVerilog input from `../rtl/common/binary_dot_product.v' to AST representation.
+Generating RTLIL representation for module `\binary_dot_product'.
+Successfully finished Verilog frontend.
+
+4. Executing Verilog-2005 frontend: ../rtl/common/layer_norm.v
+Parsing SystemVerilog input from `../rtl/common/layer_norm.v' to AST representation.
+Generating RTLIL representation for module `\layer_norm'.
+Warning: Replacing memory \var_sums with list of registers. See ../rtl/common/layer_norm.v:110
+Warning: Replacing memory \elem_sums with list of registers. See ../rtl/common/layer_norm.v:108
+Warning: Replacing memory \x_buf with list of registers. See ../rtl/common/layer_norm.v:89
+Successfully finished Verilog frontend.
+
+5. Executing Verilog-2005 frontend: ../rtl/common/softmax_approx.v
+Parsing SystemVerilog input from `../rtl/common/softmax_approx.v' to AST representation.
+Generating RTLIL representation for module `\softmax_approx'.
+Warning: Replacing memory \partial_max with list of registers. See ../rtl/common/softmax_approx.v:153, ../rtl/common/softmax_approx.v:146
+Warning: Replacing memory \x_buf with list of registers. See ../rtl/common/softmax_approx.v:130
+Successfully finished Verilog frontend.
+
+6. Executing Verilog-2005 frontend: ../rtl/common/gelu_approx.v
+Parsing SystemVerilog input from `../rtl/common/gelu_approx.v' to AST representation.
+Generating RTLIL representation for module `\gelu_approx'.
+Successfully finished Verilog frontend.
+
+7. Executing Verilog-2005 frontend: ../rtl/common/rms_norm.v
+Parsing SystemVerilog input from `../rtl/common/rms_norm.v' to AST representation.
+Generating RTLIL representation for module `\rms_norm'.
+Warning: Replacing memory \x_buf with list of registers. See ../rtl/common/rms_norm.v:82
+Successfully finished Verilog frontend.
+
+8. Executing Verilog-2005 frontend: ../rtl/common/simd_vector_unit.v
+Parsing SystemVerilog input from `../rtl/common/simd_vector_unit.v' to AST representation.
+Generating RTLIL representation for module `\simd_vector_unit'.
+Warning: Replacing memory \acc_reg with list of registers. See ../rtl/common/simd_vector_unit.v:299
+Successfully finished Verilog frontend.
+
+9. Executing Verilog-2005 frontend: ../rtl/common/axi_interface.v
+Parsing SystemVerilog input from `../rtl/common/axi_interface.v' to AST representation.
+Generating RTLIL representation for module `\axi_interface'.
+Successfully finished Verilog frontend.
+
+10. Executing Verilog-2005 frontend: ../rtl/common/power_controller.v
+Parsing SystemVerilog input from `../rtl/common/power_controller.v' to AST representation.
+Generating RTLIL representation for module `\power_controller'.
+Warning: Replacing memory \compute_idle_cycles with list of registers. See ../rtl/common/power_controller.v:161
+Successfully finished Verilog frontend.
+
+11. Executing Verilog-2005 frontend: ../rtl/vision_encoder/patch_embed.v
+Parsing SystemVerilog input from `../rtl/vision_encoder/patch_embed.v' to AST representation.
+Generating RTLIL representation for module `\patch_embed'.
+Warning: Replacing memory \embed_accum with list of registers. See ../rtl/vision_encoder/patch_embed.v:244
+Warning: Replacing memory \patch_buffer with list of registers. See ../rtl/vision_encoder/patch_embed.v:182

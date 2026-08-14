@@ -73,34 +73,30 @@ module kv_cache #(
 
     
     // =========================================================================
-    // Key cache memory (BRAM inference)
+    // Key cache memory (BRAM inference) 
     // =========================================================================
-    // Organized as: MAX_SEQ_LEN x NUM_HEADS memories, each HEAD_DIM wide
+    // Organized as flattened arrays for portable indexing
     
-    genvar h;
-    generate
-        for (h = 0; h < NUM_HEADS; h = h + 1) begin : gen_head_cache
-            
-            // Key memory for this head
-            (* ram_style = "block" *)
-            reg [HEAD_DIM*ACT_WIDTH-1:0] k_mem [0:MAX_SEQ_LEN-1];
-            
-            // Value memory for this head
-            (* ram_style = "block" *)
-            reg [HEAD_DIM*ACT_WIDTH-1:0] v_mem [0:MAX_SEQ_LEN-1];
-            
-            // Write logic
-            always @(posedge clk) begin
-                if (kv_write_en && kv_write_ready) begin
-                    k_mem[write_ptr[ADDR_WIDTH-1:0]] <= 
-                        k_in[h*HEAD_DIM*ACT_WIDTH +: HEAD_DIM*ACT_WIDTH];
-                    v_mem[write_ptr[ADDR_WIDTH-1:0]] <= 
-                        v_in[h*HEAD_DIM*ACT_WIDTH +: HEAD_DIM*ACT_WIDTH];
-                end
+    // Flattened key memory: [head_index][seq_position]
+    (* ram_style = "block" *)
+    reg [HEAD_DIM*ACT_WIDTH-1:0] k_mem [0:NUM_HEADS*MAX_SEQ_LEN-1];
+    
+    // Flattened value memory: [head_index][seq_position]
+    (* ram_style = "block" *)
+    reg [HEAD_DIM*ACT_WIDTH-1:0] v_mem [0:NUM_HEADS*MAX_SEQ_LEN-1];
+    
+    // Write logic - write all heads in parallel
+    integer wr_h;
+    always @(posedge clk) begin
+        if (kv_write_en && kv_write_ready) begin
+            for (wr_h = 0; wr_h < NUM_HEADS; wr_h = wr_h + 1) begin
+                k_mem[wr_h * MAX_SEQ_LEN + write_ptr[ADDR_WIDTH-1:0]] <= 
+                    k_in[wr_h*HEAD_DIM*ACT_WIDTH +: HEAD_DIM*ACT_WIDTH];
+                v_mem[wr_h * MAX_SEQ_LEN + write_ptr[ADDR_WIDTH-1:0]] <= 
+                    v_in[wr_h*HEAD_DIM*ACT_WIDTH +: HEAD_DIM*ACT_WIDTH];
             end
-            
         end
-    endgenerate
+    end
     
     // =========================================================================
     // Read logic with head selection
@@ -122,8 +118,11 @@ module kv_cache #(
         end
     end
     
-    // Read mux (selects output from appropriate head)
-    integer read_h;
+    // Compute read address
+    wire [ADDR_WIDTH + $clog2(NUM_HEADS) - 1:0] rd_addr;
+    assign rd_addr = rd_head_r * MAX_SEQ_LEN + rd_pos_r;
+    
+    // Read from flattened memory
     always @(posedge clk) begin
         if (!rst_n) begin
             k_out <= 0;
@@ -131,18 +130,8 @@ module kv_cache #(
             kv_read_valid <= 1'b0;
         end else begin
             kv_read_valid <= rd_en_r;
-            
-            // Default
-            k_out <= 0;
-            v_out <= 0;
-            
-            // Select from appropriate head memory
-            for (read_h = 0; read_h < NUM_HEADS; read_h = read_h + 1) begin
-                if (rd_head_r == read_h) begin
-                    k_out <= gen_head_cache[read_h].k_mem[rd_pos_r];
-                    v_out <= gen_head_cache[read_h].v_mem[rd_pos_r];
-                end
-            end
+            k_out <= k_mem[rd_addr];
+            v_out <= v_mem[rd_addr];
         end
     end
 

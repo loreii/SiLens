@@ -1,0 +1,68 @@
+# Yosys Synthesis Script for SiLens FPGA Resource Analysis
+# This script analyzes all RTL modules and reports exact cell counts
+
+# Read all common modules
+read_verilog -sv ../rtl/common/popcount.v
+read_verilog -sv ../rtl/common/ternary_mac.v
+read_verilog -sv ../rtl/common/binary_dot_product.v
+read_verilog -sv ../rtl/common/layer_norm.v
+read_verilog -sv ../rtl/common/softmax_approx.v
+read_verilog -sv ../rtl/common/gelu_approx.v
+read_verilog -sv ../rtl/common/rms_norm.v
+read_verilog -sv ../rtl/common/simd_vector_unit.v
+read_verilog -sv ../rtl/common/axi_interface.v
+read_verilog -sv ../rtl/common/power_controller.v
+
+# Read vision encoder modules
+read_verilog -sv ../rtl/vision_encoder/patch_embed.v
+read_verilog -sv ../rtl/vision_encoder/vit_attention.v
+read_verilog -sv ../rtl/vision_encoder/vit_mlp.v
+read_verilog -sv ../rtl/vision_encoder/vit_block.v
+read_verilog -sv ../rtl/vision_encoder/vision_encoder.v
+
+# Read projector module
+read_verilog -sv ../rtl/projector/projector.v
+
+# Read language model modules
+read_verilog -sv ../rtl/language_model/llm_attention.v
+read_verilog -sv ../rtl/language_model/llm_mlp.v
+read_verilog -sv ../rtl/language_model/llm_block.v
+read_verilog -sv ../rtl/language_model/llm_head.v
+read_verilog -sv ../rtl/language_model/language_model.v
+
+# Read memory modules
+read_verilog -sv ../rtl/memory/embedding_rom.v
+read_verilog -sv ../rtl/memory/activation_buffer.v
+read_verilog -sv ../rtl/memory/kv_cache.v
+read_verilog -sv ../rtl/memory/memory_controller.v
+
+# Read PCIe modules
+read_verilog -sv ../rtl/pcie/register_file.v
+read_verilog -sv ../rtl/pcie/dma_engine.v
+read_verilog -sv ../rtl/pcie/pcie_wrapper.v
+
+# Read top module
+read_verilog -sv ../rtl/top/silens_top.v
+
+# Hierarchy check
+hierarchy -check -top silens_top
+
+# High-level synthesis
+proc
+opt
+memory
+opt
+
+# Flatten for accurate counting
+flatten
+opt
+
+# Technology mapping to generic gates
+techmap
+opt
+
+# Print statistics
+stat
+
+# Save detailed report
+tee -o synthesis_report.txt stat

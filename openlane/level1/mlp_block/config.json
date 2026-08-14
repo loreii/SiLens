@@ -1,0 +1,72 @@
+{
+    "//": "=======================================================================",
+    "//": "MLP Block (Gated MLP / SwiGLU style) - Level 1 Primitive",
+    "//": "=======================================================================",
+    "//": "Gated MLP used in transformer layers: out = down_proj(silu(gate_proj(x)) * up_proj(x))",
+    "//": "Reused 42× across SoC: 30× in LLM (576→1536), 12× in Vision (768→3072)",
+    "//": "Configurable dimensions via parameters for multi-modal support.",
+    
+    "DESIGN_NAME": "mlp_block",
+    
+    "VERILOG_FILES": [
+        "dir::src/mlp_block.v"
+    ],
+    
+    "//": "=== Clock ===",
+    "CLOCK_PORT": "clk",
+    "CLOCK_PERIOD": 10.0,
+    "//": "10ns = 100 MHz target frequency",
+    
+    "//": "=== Die Area ===",
+    "//": "Target: ~3mm² = 1700µm × 1700µm",
+    "FP_SIZING": "absolute",
+    "DIE_AREA": "0 0 1700 1700",
+    "CORE_AREA": "20 20 1680 1680",
+    
+    "//": "=== This is a MACRO, not top-level ===",
+    "DESIGN_IS_CORE": false,
+    
+    "//": "=== Placement ===",
+    "PL_TARGET_DENSITY": 0.50,
+    "PL_ROUTABILITY_DRIVEN": true,
+    "PL_TIME_DRIVEN": true,
+    
+    "//": "=== Synthesis ===",
+    "SYNTH_STRATEGY": "AREA 2",
+    "SYNTH_MAX_FANOUT": 6,
+    "//": "Area-optimized synthesis for large block",
+    
+    "//": "=== CTS ===",
+    "CTS_TARGET_SKEW": 150,
+    "CTS_SINK_CLUSTERING_SIZE": 25,
+    "//": "Relaxed CTS for larger area",
+    
+    "//": "=== Routing ===",
+    "GRT_ADJUSTMENT": 0.25,
+    "//": "Slightly more routing resources for dense block",
+    
+    "//": "=== Signoff - Must be strict for Level 1 ===",
+    "RUN_KLAYOUT_XOR": true,
+    "RUN_MAGIC_DRC": true,
+    "RUN_LVS": true,
+    "QUIT_ON_DRC_ERROR": true,
+    "QUIT_ON_LVS_ERROR": true,
+    "QUIT_ON_TIMING_VIOLATIONS": false,
+    "//": "Allow timing violations initially, fix iteratively",
+    
+    "//": "=== Technology ===",
+    "PDK": "sky130A",
+    "STD_CELL_LIBRARY": "sky130_fd_sc_hd",
+    
+    "//": "=== Antenna protection ===",
+    "DIODE_INSERTION_STRATEGY": 3,
+    "//": "Strategy 3: insert diodes preventively",
+    
+    "//": "=== Outputs for reuse ===",
+    "GENERATE_FINAL_SUMMARY_REPORT": true,
+    
+    "VERILOG_DEFINES": [
+        "SYNTHESIS_SKY130",
+        "LEVEL1_MACRO"
+    ]
+}

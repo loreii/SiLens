@@ -1,0 +1,89 @@
+{
+    "//": "=============================================================================",
+    "//": "SiLens SoC - Level 4 Top Integration (800mm²)",
+    "//": "=============================================================================",
+    "//": "Die: ~800mm² (26mm × 30.8mm = 800.8mm²) - fits 832mm² reticle",
+    "//": "Contains: 4 Level 3 subsystem macros + top-level integration",
+    "//": "=============================================================================",
+    
+    "DESIGN_NAME": "silens_soc_top",
+    "VERILOG_FILES": "dir::src/*.v",
+    
+    "//": "--- Clock Configuration ---",
+    "CLOCK_PORT": "clk_ref",
+    "CLOCK_PERIOD": 10.0,
+    "CLOCK_TREE_SYNTH": true,
+    
+    "//": "--- Die Size (800mm² for SkyWater reticle) ---",
+    "FP_SIZING": "absolute",
+    "DIE_AREA": "0 0 26000 30770",
+    "CORE_AREA": "100 100 25900 30670",
+    
+    "//": "--- Macro Integration (Level 3 Subsystems) ---",
+    "MACRO_PLACEMENT_CFG": "macro_placement.cfg",
+    "EXTRA_LEFS": [
+        "../level3/vision_subsystem/runs/run1/results/final/lef/vision_subsystem.lef",
+        "../level3/llm_subsystem/runs/run1/results/final/lef/llm_subsystem.lef",
+        "../level3/memory_subsystem/runs/run1/results/final/lef/memory_subsystem.lef",
+        "../level3/io_subsystem/runs/run1/results/final/lef/io_subsystem.lef"
+    ],
+    "EXTRA_GDS_FILES": [
+        "../level3/vision_subsystem/runs/run1/results/final/gds/vision_subsystem.gds",
+        "../level3/llm_subsystem/runs/run1/results/final/gds/llm_subsystem.gds",
+        "../level3/memory_subsystem/runs/run1/results/final/gds/memory_subsystem.gds",
+        "../level3/io_subsystem/runs/run1/results/final/gds/io_subsystem.gds"
+    ],
+    
+    "//": "--- Floorplanning ---",
+    "FP_PIN_ORDER_CFG": "pin_order.cfg",
+    "PL_TARGET_DENSITY": 0.30,
+    "PL_MACRO_HALO": "50 50",
+    "PL_MACRO_CHANNEL": "100 100",
+    
+    "//": "--- Power Distribution Network ---",
+    "//": "25W TDP requires robust power grid",
+    "FP_PDN_CORE_RING": true,
+    "FP_PDN_CHECK_NODES": true,
+    "VDD_NETS": "VPWR VDD vdd",
+    "GND_NETS": "VGND VSS vss",
+    "FP_PDN_VWIDTH": 4.0,
+    "FP_PDN_HWIDTH": 4.0,
+    "FP_PDN_VPITCH": 100,
+    "FP_PDN_HPITCH": 100,
+    
+    "//": "--- Clock Tree Synthesis ---",
+    "//": "28mm diagonal requires careful CTS",
+    "CTS_CLK_MAX_WIRE_LENGTH": 2000,
+    "CTS_MAX_CAP": 0.5,
+    "CTS_SINK_CLUSTERING_SIZE": 25,
+    "CTS_SINK_CLUSTERING_MAX_DIAMETER": 500,
+    
+    "//": "--- Routing Configuration ---",
+    "RT_MAX_LAYER": "met5",
+    "GLB_RT_ADJUSTMENT": 0.3,
+    "GLB_RT_OVERFLOW_ITERS": 100,
+    "GLB_RT_MAX_DIODE_INS_ITERS": 10,
+    "DRT_OPT_ITERS": 64,
+    
+    "//": "--- DRC and Signoff ---",
+    "RUN_KLAYOUT_XOR": true,
+    "RUN_KLAYOUT_DRC": true,
+    "RUN_MAGIC_DRC": true,
+    "RUN_LVS": true,
+    "LVS_INSERT_POWER_PINS": true,
+    
+    "//": "--- Antenna Mitigation ---",
+    "GRT_ANT_ITERS": 10,
+    "RUN_FILL_INSERTION": true,
+    
+    "//": "--- Reports ---",
+    "GENERATE_FINAL_SUMMARY_REPORT": true,
+    "RUN_CVC": false,
+    
+    "//": "--- Area Estimates ---",
+    "//": "Vision:  250mm² @ (100, 100) to (15900, 15870)",
+    "//": "LLM:     400mm² @ (16000, 100) to (25900, 20100)",
+    "//": "Memory:   50mm² @ (100, 16000) to (7200, 23100)",
+    "//": "IO:       30mm² @ (100, 23200) to (5600, 28700)",
+    "//": "Routing: ~100mm² (channels between macros)"
+}

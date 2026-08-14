@@ -1,0 +1,127 @@
+{
+    "//": "=======================================================================",
+    "//": "LLM Subsystem - Level 3 Synthesis Block",
+    "//": "=======================================================================",
+    "//": "Complete SmolLM2-135M decoder with 30 transformer layers.",
+    "//": "Composes Level 2 macros: 30× transformer_block_llm + 1× embedding_block",
+    "//": "",
+    "//": "Architecture:",
+    "//": "  Input tokens → embedding_block → 30× transformer_block_llm (sequential)",
+    "//": "                               → Final RMS Norm → LM Head → Output logits",
+    "//": "",
+    "//": "Specifications:",
+    "//": "  - Vocabulary: 49152 tokens (16-bit token IDs)",
+    "//": "  - Hidden dimension: 576",
+    "//": "  - Attention heads: 9 per layer (270 total)",
+    "//": "  - MLP hidden: 1536",
+    "//": "  - Max sequence: 256 tokens",
+    "//": "",
+    "//": "Target: ~400mm² on SKY130 (20000µm × 20000µm = 20mm × 20mm)",
+    
+    "DESIGN_NAME": "llm_subsystem",
+    
+    "VERILOG_FILES": [
+        "dir::src/llm_subsystem.v"
+    ],
+    
+    "//": "=== Clock ===",
+    "CLOCK_PORT": "clk",
+    "CLOCK_PERIOD": 10.0,
+    "//": "10ns = 100 MHz target frequency",
+    
+    "//": "=== Die Area ===",
+    "//": "Target: ~400mm² = 20000µm × 20000µm",
+    "FP_SIZING": "absolute",
+    "DIE_AREA": "0 0 20000 20000",
+    "CORE_AREA": "100 100 19900 19900",
+    
+    "//": "=== This is a MACRO for Level 4 (full SoC) integration ===",
+    "DESIGN_IS_CORE": false,
+    
+    "//": "=== Level 2 Macros to integrate ===",
+    "MACROS": {
+        "transformer_block_llm": {
+            "gds": ["dir::../../level2/transformer_block_llm/runs/latest/results/final/gds/transformer_block_llm.gds"],
+            "lef": ["dir::../../level2/transformer_block_llm/runs/latest/results/final/lef/transformer_block_llm.lef"],
+            "verilog_blackbox": ["dir::../../level2/transformer_block_llm/src/transformer_block_llm.v"],
+            "nl": ["dir::../../level2/transformer_block_llm/runs/latest/results/final/nl/transformer_block_llm.nl.v"],
+            "//": "Size: ~3600µm × 3600µm (~13mm²), 30 instances",
+            "instances": 30
+        },
+        "embedding_block": {
+            "gds": ["dir::../../level2/embedding_block/runs/latest/results/final/gds/embedding_block.gds"],
+            "lef": ["dir::../../level2/embedding_block/runs/latest/results/final/lef/embedding_block.lef"],
+            "verilog_blackbox": ["dir::../../level2/embedding_block/src/embedding_block.v"],
+            "nl": ["dir::../../level2/embedding_block/runs/latest/results/final/nl/embedding_block.nl.v"],
+            "//": "Size: ~3900µm × 3900µm (~15mm²), 1 instance"
+        },
+        "rms_norm_block": {
+            "gds": ["dir::../../level1/rms_norm_block/runs/latest/results/final/gds/rms_norm_block.gds"],
+            "lef": ["dir::../../level1/rms_norm_block/runs/latest/results/final/lef/rms_norm_block.lef"],
+            "verilog_blackbox": ["dir::../../level1/rms_norm_block/src/rms_norm_block.v"],
+            "nl": ["dir::../../level1/rms_norm_block/runs/latest/results/final/nl/rms_norm_block.nl.v"],
+            "//": "Size: ~700µm × 700µm, 1 instance for final norm"
+        }
+    },
+    
+    "//": "=== Macro Placement ===",
+    "//": "30 transformer blocks in 5×6 grid + embedding + final RMS norm + LM head",
+    "MACRO_PLACEMENT_CFG": "dir::macro_placement.cfg",
+    
+    "//": "=== Placement ===",
+    "PL_TARGET_DENSITY": 0.40,
+    "PL_ROUTABILITY_DRIVEN": true,
+    "PL_TIME_DRIVEN": true,
+    "//": "Lower density for extensive macro routing at this scale",
+    
+    "//": "=== Synthesis ===",
+    "SYNTH_STRATEGY": "AREA 3",
+    "SYNTH_MAX_FANOUT": 10,
+    "SYNTH_BUFFERING": true,
+    "//": "Maximum area optimization, glue logic synthesis",
+    
+    "//": "=== CTS ===",
+    "CTS_TARGET_SKEW": 500,
+    "CTS_SINK_CLUSTERING_SIZE": 50,
+    "//": "Relaxed skew for large block, may need multi-corner CTS",
+    
+    "//": "=== Routing ===",
+    "GRT_ADJUSTMENT": 0.35,
+    "GRT_OVERFLOW_ITERS": 200,
+    "DRT_OPT_ITERS": 100,
+    "//": "Conservative routing for large macro count",
+    
+    "//": "=== Signoff ===",
+    "RUN_KLAYOUT_XOR": true,
+    "RUN_MAGIC_DRC": true,
+    "RUN_LVS": true,
+    "QUIT_ON_DRC_ERROR": true,
+    "QUIT_ON_LVS_ERROR": true,
+    "QUIT_ON_TIMING_VIOLATIONS": false,
+    "//": "Clean signoff for Level 3 subsystem",
+    
+    "//": "=== Technology ===",
+    "PDK": "sky130A",
+    "STD_CELL_LIBRARY": "sky130_fd_sc_hd",
+    
+    "//": "=== Antenna protection ===",
+    "DIODE_INSERTION_STRATEGY": 4,
+    "//": "Aggressive antenna protection for long wires",
+    
+    "//": "=== Power Distribution Network ===",
+    "FP_PDN_CORE_RING": true,
+    "FP_PDN_ENABLE_RAILS": true,
+    "FP_PDN_MULTILAYER": true,
+    "VDD_NETS": "vccd1",
+    "GND_NETS": "vssd1",
+    "//": "Robust power grid for 400mm² die",
+    
+    "//": "=== Outputs for Level 4 reuse ===",
+    "GENERATE_FINAL_SUMMARY_REPORT": true,
+    
+    "VERILOG_DEFINES": [
+        "SYNTHESIS_SKY130",
+        "LEVEL3_SUBSYSTEM",
+        "NUM_LAYERS=30"
+    ]
+}

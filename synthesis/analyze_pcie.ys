@@ -1,0 +1,12 @@
+# PCIe modules analysis
+read_verilog -sv ../rtl/common/axi_interface.v
+read_verilog -sv ../rtl/pcie/register_file.v
+read_verilog -sv ../rtl/pcie/dma_engine.v
+read_verilog -sv ../rtl/pcie/pcie_wrapper.v
+
+hierarchy -check
+proc
+opt
+techmap
+opt
+stat

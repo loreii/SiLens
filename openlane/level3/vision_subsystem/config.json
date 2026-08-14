@@ -1,0 +1,144 @@
+{
+    "//": "=======================================================================",
+    "//": "Vision Subsystem - Level 3 Hierarchical Synthesis Block",
+    "//": "=======================================================================",
+    "//": "Complete SigLIP-B/16 Vision Encoder for SiLens multimodal accelerator.",
+    "//": "",
+    "//": "Architecture:",
+    "//": "  Input Image (384×384×3)",
+    "//": "    → Patch Embedding (16×16 patches = 576 + 1 CLS = 577)",
+    "//": "    → 12× transformer_block_vision (sequential processing)",
+    "//": "    → Final Layer Norm",
+    "//": "    → CLS token output (768-dim) → to projector",
+    "//": "",
+    "//": "Target: ~250mm² on SKY130 (15800µm × 15800µm)",
+    "//": "",
+    "//": "Level 2 macro dependencies:",
+    "//": "  - 12× transformer_block_vision (~20mm² each, 3×4 grid)",
+    "//": "  - 1× layer_norm_block (final LayerNorm)",
+    
+    "DESIGN_NAME": "vision_subsystem",
+    
+    "VERILOG_FILES": [
+        "dir::src/vision_subsystem.v"
+    ],
+    
+    "//": "=== Clock ===",
+    "CLOCK_PORT": "clk",
+    "CLOCK_PERIOD": 10.0,
+    "//": "10ns = 100 MHz target frequency",
+    
+    "//": "=== Die Area ===",
+    "//": "Target: ~250mm² = 15800µm × 15800µm",
+    "FP_SIZING": "absolute",
+    "DIE_AREA": "0 0 15800 15800",
+    "CORE_AREA": "100 100 15700 15700",
+    
+    "//": "=== This is a MACRO block (Level 3) ===",
+    "DESIGN_IS_CORE": false,
+    
+    "//": "=== Level 2 Macro Placement ===",
+    "//": "12 transformer blocks in 3×4 grid (3 columns × 4 rows)",
+    "//": "Each transformer block: ~4500µm × 4500µm (~20mm²)",
+    "//": "Grid spacing: ~5000µm to allow routing channels",
+    "//": "",
+    "//": "Layout (µm coordinates):",
+    "//": "  Row 0: [500,500] [5500,500] [10500,500]",
+    "//": "  Row 1: [500,5500] [5500,5500] [10500,5500]",
+    "//": "  Row 2: [500,10500] [5500,10500] [10500,10500]",
+    "//": "  Row 3: [500,15500] → Final LN in remaining space",
+    "MACROS": {
+        "transformer_block": {
+            "gds": ["dir::../../level2/transformer_block_vision/runs/latest/results/final/gds/transformer_block_vision.gds"],
+            "lef": ["dir::../../level2/transformer_block_vision/runs/latest/results/final/lef/transformer_block_vision.lef"],
+            "instances": {
+                "gen_transformer_layers[0].u_transformer_layer":  {"location": [500,  500],   "orientation": "N"},
+                "gen_transformer_layers[1].u_transformer_layer":  {"location": [5500, 500],   "orientation": "N"},
+                "gen_transformer_layers[2].u_transformer_layer":  {"location": [10500, 500],  "orientation": "N"},
+                "gen_transformer_layers[3].u_transformer_layer":  {"location": [500,  5200],  "orientation": "N"},
+                "gen_transformer_layers[4].u_transformer_layer":  {"location": [5500, 5200],  "orientation": "N"},
+                "gen_transformer_layers[5].u_transformer_layer":  {"location": [10500, 5200], "orientation": "N"},
+                "gen_transformer_layers[6].u_transformer_layer":  {"location": [500,  9900],  "orientation": "N"},
+                "gen_transformer_layers[7].u_transformer_layer":  {"location": [5500, 9900],  "orientation": "N"},
+                "gen_transformer_layers[8].u_transformer_layer":  {"location": [10500, 9900], "orientation": "N"},
+                "gen_transformer_layers[9].u_transformer_layer":  {"location": [500,  14600], "orientation": "N"},
+                "gen_transformer_layers[10].u_transformer_layer": {"location": [5500, 14600], "orientation": "N"},
+                "gen_transformer_layers[11].u_transformer_layer": {"location": [10500, 14600], "orientation": "N"}
+            }
+        },
+        "final_layer_norm": {
+            "gds": ["dir::../../level1/layer_norm_block/runs/latest/results/final/gds/layer_norm_block.gds"],
+            "lef": ["dir::../../level1/layer_norm_block/runs/latest/results/final/lef/layer_norm_block.lef"],
+            "instances": {
+                "u_final_layer_norm": {
+                    "location": [15200, 500],
+                    "orientation": "N"
+                }
+            }
+        }
+    },
+    
+    "//": "=== Placement ===",
+    "PL_TARGET_DENSITY": 0.40,
+    "PL_ROUTABILITY_DRIVEN": true,
+    "PL_TIME_DRIVEN": true,
+    "PL_MACRO_HALO": "100 100",
+    "PL_MACRO_CHANNEL": "200 200",
+    "//": "Larger halos/channels for Level 3 macro-to-macro routing",
+    
+    "//": "=== Synthesis ===",
+    "SYNTH_STRATEGY": "AREA 2",
+    "SYNTH_MAX_FANOUT": 8,
+    "SYNTH_BUFFERING": true,
+    "SYNTH_HIERARCHICAL": true,
+    "//": "Hierarchical synthesis preserves macro boundaries",
+    
+    "//": "=== CTS ===",
+    "CTS_TARGET_SKEW": 500,
+    "CTS_SINK_CLUSTERING_SIZE": 50,
+    "CTS_CLK_BUFFER_LIST": "sky130_fd_sc_hd__clkbuf_16 sky130_fd_sc_hd__clkbuf_8",
+    "//": "Very relaxed CTS for large hierarchical block with 12 macro boundaries",
+    
+    "//": "=== Routing ===",
+    "GRT_ADJUSTMENT": 0.25,
+    "GRT_OVERFLOW_ITERS": 200,
+    "DRT_OPT_ITERS": 80,
+    "//": "More routing resources for dense 768-bit buses between macros",
+    
+    "//": "=== Power Distribution Network ===",
+    "FP_PDN_VOFFSET": 10,
+    "FP_PDN_HOFFSET": 10,
+    "FP_PDN_VPITCH": 150,
+    "FP_PDN_HPITCH": 150,
+    "//": "Wider PDN pitch for large die",
+    
+    "//": "=== Signoff ===",
+    "RUN_KLAYOUT_XOR": true,
+    "RUN_MAGIC_DRC": true,
+    "RUN_LVS": true,
+    "QUIT_ON_DRC_ERROR": true,
+    "QUIT_ON_LVS_ERROR": true,
+    "QUIT_ON_TIMING_VIOLATIONS": false,
+    "//": "Allow timing violations initially, fix iteratively",
+    
+    "//": "=== Technology ===",
+    "PDK": "sky130A",
+    "STD_CELL_LIBRARY": "sky130_fd_sc_hd",
+    
+    "//": "=== Antenna protection ===",
+    "DIODE_INSERTION_STRATEGY": 3,
+    "//": "Strategy 3: insert diodes preventively for long macro-to-macro routes",
+    
+    "//": "=== Memory Configuration ===",
+    "//": "Sequence memory (~3.5Mbit) would use SRAM macros in full synthesis",
+    "//": "For OpenLane, we let it synthesize behavioral memory or use OpenRAM",
+    
+    "//": "=== Outputs for Level 4 (SoC) integration ===",
+    "GENERATE_FINAL_SUMMARY_REPORT": true,
+    
+    "VERILOG_DEFINES": [
+        "SYNTHESIS_SKY130",
+        "LEVEL3_SUBSYSTEM",
+        "VISION_ENCODER"
+    ]
+}

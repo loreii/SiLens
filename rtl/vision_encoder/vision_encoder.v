@@ -18,6 +18,9 @@
 //   - Heads: 12
 //   - MLP expansion: 4x (768 -> 3072 -> 768)
 //
+// Note: This module is designed for Verilog-2001 compatibility.
+//       Weight arrays are passed as flattened packed vectors.
+//
 // License: Apache 2.0
 // =============================================================================
 
@@ -33,7 +36,11 @@ module vision_encoder #(
     parameter ACT_WIDTH   = 8,                      // Activation bit width
     parameter ACC_WIDTH   = 32,                     // Accumulator bit width
     parameter FRAC_BITS   = 4,                      // Fractional bits
-    parameter PARALLEL    = 16                      // Parallel MAC operations
+    parameter PARALLEL    = 16,                     // Parallel MAC operations
+    // Derived parameters (must be in parameter list for port sizes)
+    parameter GRID_SIZE   = IMG_SIZE / PATCH_SIZE,  // 24
+    parameter NUM_PATCHES = GRID_SIZE * GRID_SIZE,  // 576
+    parameter PATCH_PIXELS = PATCH_SIZE * PATCH_SIZE * IN_CHANNELS // 768
 )(
     input  wire                         clk,
     input  wire                         rst_n,
@@ -51,20 +58,24 @@ module vision_encoder #(
     input  wire [DIM*PATCH_PIXELS*2-1:0] patch_proj_weights,
     input  wire [NUM_PATCHES*DIM*ACT_WIDTH-1:0] pos_embed,
     
-    // Transformer block weights (one set per layer - in practice, would be ROM)
-    // For now, using single set and iterating
-    input  wire [DIM*ACT_WIDTH-1:0]     ln1_gamma [0:NUM_LAYERS-1],
-    input  wire [DIM*ACT_WIDTH-1:0]     ln1_beta  [0:NUM_LAYERS-1],
-    input  wire [DIM*ACT_WIDTH-1:0]     ln2_gamma [0:NUM_LAYERS-1],
-    input  wire [DIM*ACT_WIDTH-1:0]     ln2_beta  [0:NUM_LAYERS-1],
-    input  wire [DIM*DIM*2-1:0]         attn_w_q  [0:NUM_LAYERS-1],
-    input  wire [DIM*DIM*2-1:0]         attn_w_k  [0:NUM_LAYERS-1],
-    input  wire [DIM*DIM*2-1:0]         attn_w_v  [0:NUM_LAYERS-1],
-    input  wire [DIM*DIM*2-1:0]         attn_w_o  [0:NUM_LAYERS-1],
-    input  wire [DIM*MLP_DIM*2-1:0]     mlp_w1    [0:NUM_LAYERS-1],
-    input  wire [MLP_DIM*DIM*2-1:0]     mlp_w2    [0:NUM_LAYERS-1],
-    input  wire [MLP_DIM*ACT_WIDTH-1:0] mlp_b1    [0:NUM_LAYERS-1],
-    input  wire [DIM*ACT_WIDTH-1:0]     mlp_b2    [0:NUM_LAYERS-1],
+    // Transformer block weights - flattened to single vectors
+    // Layer weights are selected internally based on layer_idx
+    // For simplicity, using single layer weights (weight ROM would index)
+    input  wire [DIM*ACT_WIDTH-1:0]     ln1_gamma,
+    input  wire [DIM*ACT_WIDTH-1:0]     ln1_beta,
+    input  wire [DIM*ACT_WIDTH-1:0]     ln2_gamma,
+    input  wire [DIM*ACT_WIDTH-1:0]     ln2_beta,
+    input  wire [DIM*DIM*2-1:0]         attn_w_q,
+    input  wire [DIM*DIM*2-1:0]         attn_w_k,
+    input  wire [DIM*DIM*2-1:0]         attn_w_v,
+    input  wire [DIM*DIM*2-1:0]         attn_w_o,
+    input  wire [DIM*MLP_DIM*2-1:0]     mlp_w1,
+    input  wire [MLP_DIM*DIM*2-1:0]     mlp_w2,
+    input  wire [MLP_DIM*ACT_WIDTH-1:0] mlp_b1,
+    input  wire [DIM*ACT_WIDTH-1:0]     mlp_b2,
+    
+    // Layer select output (for external weight ROM indexing)
+    output wire [$clog2(NUM_LAYERS)-1:0] layer_select,
     
     // Final layer norm weights
     input  wire [DIM*ACT_WIDTH-1:0]     final_ln_gamma,
@@ -81,14 +92,6 @@ module vision_encoder #(
     output wire                         done
 );
 
-    // =========================================================================
-    // Local parameters
-    // =========================================================================
-    
-    localparam GRID_SIZE = IMG_SIZE / PATCH_SIZE;   // 24
-    localparam NUM_PATCHES = GRID_SIZE * GRID_SIZE; // 576
-    localparam PATCH_PIXELS = PATCH_SIZE * PATCH_SIZE * IN_CHANNELS; // 768
-    
     // =========================================================================
     // FSM states
     // =========================================================================
@@ -109,6 +112,7 @@ module vision_encoder #(
     // =========================================================================
     
     reg [$clog2(NUM_LAYERS)-1:0] layer_idx;
+    assign layer_select = layer_idx;
     
     // =========================================================================
     // Token buffer (shared between layers)
@@ -165,31 +169,6 @@ module vision_encoder #(
     wire block_token_valid_out;
     reg block_token_ready_out;
     
-    // Mux weights based on current layer
-    reg [DIM*ACT_WIDTH-1:0] cur_ln1_gamma, cur_ln1_beta;
-    reg [DIM*ACT_WIDTH-1:0] cur_ln2_gamma, cur_ln2_beta;
-    reg [DIM*DIM*2-1:0] cur_attn_w_q, cur_attn_w_k, cur_attn_w_v, cur_attn_w_o;
-    reg [DIM*MLP_DIM*2-1:0] cur_mlp_w1;
-    reg [MLP_DIM*DIM*2-1:0] cur_mlp_w2;
-    reg [MLP_DIM*ACT_WIDTH-1:0] cur_mlp_b1;
-    reg [DIM*ACT_WIDTH-1:0] cur_mlp_b2;
-    
-    // Weight selection based on layer
-    always @(*) begin
-        cur_ln1_gamma = ln1_gamma[layer_idx];
-        cur_ln1_beta  = ln1_beta[layer_idx];
-        cur_ln2_gamma = ln2_gamma[layer_idx];
-        cur_ln2_beta  = ln2_beta[layer_idx];
-        cur_attn_w_q  = attn_w_q[layer_idx];
-        cur_attn_w_k  = attn_w_k[layer_idx];
-        cur_attn_w_v  = attn_w_v[layer_idx];
-        cur_attn_w_o  = attn_w_o[layer_idx];
-        cur_mlp_w1    = mlp_w1[layer_idx];
-        cur_mlp_w2    = mlp_w2[layer_idx];
-        cur_mlp_b1    = mlp_b1[layer_idx];
-        cur_mlp_b2    = mlp_b2[layer_idx];
-    end
-    
     vit_block #(
         .DIM(DIM),
         .NUM_HEADS(NUM_HEADS),
@@ -209,18 +188,18 @@ module vision_encoder #(
         .token_ready_in(block_token_ready_in),
         .seq_start(block_seq_start),
         .seq_done_in(block_seq_done_in),
-        .ln1_gamma(cur_ln1_gamma),
-        .ln1_beta(cur_ln1_beta),
-        .ln2_gamma(cur_ln2_gamma),
-        .ln2_beta(cur_ln2_beta),
-        .attn_w_q(cur_attn_w_q),
-        .attn_w_k(cur_attn_w_k),
-        .attn_w_v(cur_attn_w_v),
-        .attn_w_o(cur_attn_w_o),
-        .mlp_w1(cur_mlp_w1),
-        .mlp_w2(cur_mlp_w2),
-        .mlp_b1(cur_mlp_b1),
-        .mlp_b2(cur_mlp_b2),
+        .ln1_gamma(ln1_gamma),
+        .ln1_beta(ln1_beta),
+        .ln2_gamma(ln2_gamma),
+        .ln2_beta(ln2_beta),
+        .attn_w_q(attn_w_q),
+        .attn_w_k(attn_w_k),
+        .attn_w_v(attn_w_v),
+        .attn_w_o(attn_w_o),
+        .mlp_w1(mlp_w1),
+        .mlp_w2(mlp_w2),
+        .mlp_b1(mlp_b1),
+        .mlp_b2(mlp_b2),
         .y_out(block_y_out),
         .token_idx_out(block_token_idx_out),
         .token_valid_out(block_token_valid_out),
@@ -465,10 +444,9 @@ module vision_encoder_tb;
     parameter MLP_DIM = 64;
     parameter ACT_WIDTH = 8;
     parameter ACC_WIDTH = 32;
-    
-    localparam GRID_SIZE = IMG_SIZE / PATCH_SIZE;
-    localparam NUM_PATCHES = GRID_SIZE * GRID_SIZE;
-    localparam PATCH_PIXELS = PATCH_SIZE * PATCH_SIZE * IN_CHANNELS;
+    parameter GRID_SIZE = IMG_SIZE / PATCH_SIZE;
+    parameter NUM_PATCHES = GRID_SIZE * GRID_SIZE;
+    parameter PATCH_PIXELS = PATCH_SIZE * PATCH_SIZE * IN_CHANNELS;
     
     reg clk, rst_n;
     reg [IN_CHANNELS*ACT_WIDTH-1:0] pixel_in;
@@ -479,18 +457,19 @@ module vision_encoder_tb;
     // Weight inputs (simplified for test)
     reg [DIM*PATCH_PIXELS*2-1:0] patch_proj_weights;
     reg [NUM_PATCHES*DIM*ACT_WIDTH-1:0] pos_embed;
-    reg [DIM*ACT_WIDTH-1:0] ln1_gamma [0:NUM_LAYERS-1];
-    reg [DIM*ACT_WIDTH-1:0] ln1_beta [0:NUM_LAYERS-1];
-    reg [DIM*ACT_WIDTH-1:0] ln2_gamma [0:NUM_LAYERS-1];
-    reg [DIM*ACT_WIDTH-1:0] ln2_beta [0:NUM_LAYERS-1];
-    reg [DIM*DIM*2-1:0] attn_w_q [0:NUM_LAYERS-1];
-    reg [DIM*DIM*2-1:0] attn_w_k [0:NUM_LAYERS-1];
-    reg [DIM*DIM*2-1:0] attn_w_v [0:NUM_LAYERS-1];
-    reg [DIM*DIM*2-1:0] attn_w_o [0:NUM_LAYERS-1];
-    reg [DIM*MLP_DIM*2-1:0] mlp_w1 [0:NUM_LAYERS-1];
-    reg [MLP_DIM*DIM*2-1:0] mlp_w2 [0:NUM_LAYERS-1];
-    reg [MLP_DIM*ACT_WIDTH-1:0] mlp_b1 [0:NUM_LAYERS-1];
-    reg [DIM*ACT_WIDTH-1:0] mlp_b2 [0:NUM_LAYERS-1];
+    reg [DIM*ACT_WIDTH-1:0] ln1_gamma;
+    reg [DIM*ACT_WIDTH-1:0] ln1_beta;
+    reg [DIM*ACT_WIDTH-1:0] ln2_gamma;
+    reg [DIM*ACT_WIDTH-1:0] ln2_beta;
+    reg [DIM*DIM*2-1:0] attn_w_q;
+    reg [DIM*DIM*2-1:0] attn_w_k;
+    reg [DIM*DIM*2-1:0] attn_w_v;
+    reg [DIM*DIM*2-1:0] attn_w_o;
+    reg [DIM*MLP_DIM*2-1:0] mlp_w1;
+    reg [MLP_DIM*DIM*2-1:0] mlp_w2;
+    reg [MLP_DIM*ACT_WIDTH-1:0] mlp_b1;
+    reg [DIM*ACT_WIDTH-1:0] mlp_b2;
+    wire [$clog2(NUM_LAYERS)-1:0] layer_select;
     reg [DIM*ACT_WIDTH-1:0] final_ln_gamma;
     reg [DIM*ACT_WIDTH-1:0] final_ln_beta;
     
@@ -510,8 +489,41 @@ module vision_encoder_tb;
         .HEAD_DIM(HEAD_DIM),
         .MLP_DIM(MLP_DIM),
         .ACT_WIDTH(ACT_WIDTH),
-        .ACC_WIDTH(ACC_WIDTH)
-    ) dut (.*);
+        .ACC_WIDTH(ACC_WIDTH),
+        .GRID_SIZE(GRID_SIZE),
+        .NUM_PATCHES(NUM_PATCHES),
+        .PATCH_PIXELS(PATCH_PIXELS)
+    ) dut (
+        .clk(clk),
+        .rst_n(rst_n),
+        .pixel_in(pixel_in),
+        .pixel_valid(pixel_valid),
+        .pixel_ready(pixel_ready),
+        .frame_start(frame_start),
+        .patch_proj_weights(patch_proj_weights),
+        .pos_embed(pos_embed),
+        .ln1_gamma(ln1_gamma),
+        .ln1_beta(ln1_beta),
+        .ln2_gamma(ln2_gamma),
+        .ln2_beta(ln2_beta),
+        .attn_w_q(attn_w_q),
+        .attn_w_k(attn_w_k),
+        .attn_w_v(attn_w_v),
+        .attn_w_o(attn_w_o),
+        .mlp_w1(mlp_w1),
+        .mlp_w2(mlp_w2),
+        .mlp_b1(mlp_b1),
+        .mlp_b2(mlp_b2),
+        .layer_select(layer_select),
+        .final_ln_gamma(final_ln_gamma),
+        .final_ln_beta(final_ln_beta),
+        .token_out(token_out),
+        .token_idx(token_idx),
+        .token_valid(token_valid),
+        .token_ready(token_ready),
+        .busy(busy),
+        .done(done)
+    );
     
     always #5 clk = ~clk;
     
@@ -536,20 +548,18 @@ module vision_encoder_tb;
         final_ln_gamma = {DIM{8'd16}};
         final_ln_beta = 0;
         
-        for (i = 0; i < NUM_LAYERS; i = i + 1) begin
-            ln1_gamma[i] = {DIM{8'd16}};
-            ln1_beta[i] = 0;
-            ln2_gamma[i] = {DIM{8'd16}};
-            ln2_beta[i] = 0;
-            attn_w_q[i] = {(DIM*DIM){2'b01}};
-            attn_w_k[i] = {(DIM*DIM){2'b01}};
-            attn_w_v[i] = {(DIM*DIM){2'b01}};
-            attn_w_o[i] = {(DIM*DIM){2'b01}};
-            mlp_w1[i] = {(DIM*MLP_DIM){2'b01}};
-            mlp_w2[i] = {(MLP_DIM*DIM){2'b01}};
-            mlp_b1[i] = 0;
-            mlp_b2[i] = 0;
-        end
+        ln1_gamma = {DIM{8'd16}};
+        ln1_beta = 0;
+        ln2_gamma = {DIM{8'd16}};
+        ln2_beta = 0;
+        attn_w_q = {(DIM*DIM){2'b01}};
+        attn_w_k = {(DIM*DIM){2'b01}};
+        attn_w_v = {(DIM*DIM){2'b01}};
+        attn_w_o = {(DIM*DIM){2'b01}};
+        mlp_w1 = {(DIM*MLP_DIM){2'b01}};
+        mlp_w2 = {(MLP_DIM*DIM){2'b01}};
+        mlp_b1 = 0;
+        mlp_b2 = 0;
         
         repeat(4) @(posedge clk);
         rst_n = 1;

@@ -1,0 +1,94 @@
+{
+    "//": "=======================================================================",
+    "//": "IO Subsystem - Level 3 Subsystem",
+    "//": "=======================================================================",
+    "//": "Host communication and control interfaces for SiLens SoC.",
+    "//": "Provides parallel host interface, SPI slave, interrupt controller,",
+    "//": "GPIO controller, and internal register file.",
+    "//": "",
+    "//": "Architecture:",
+    "//": "  External Host → Parallel Host Interface (high bandwidth)",
+    "//": "                       ↓",
+    "//": "  Internal AXI Bus → Register File",
+    "//": "        ↓                  ↓",
+    "//": "   SPI Slave          GPIO/IRQ",
+    "//": "   (config)           (status/control)",
+    "//": "",
+    "//": "Target: ~30mm² on SKY130 (5500µm × 5500µm)",
+    
+    "DESIGN_NAME": "io_subsystem",
+    
+    "VERILOG_FILES": [
+        "dir::src/io_subsystem.v",
+        "dir::src/interrupt_controller.v",
+        "dir::src/gpio_controller.v",
+        "dir::../../../../rtl/interfaces/silens_host_interface.v",
+        "dir::../../../../rtl/interfaces/silens_spi_slave.v"
+    ],
+    
+    "//": "=== Clock ===",
+    "CLOCK_PORT": "clk",
+    "CLOCK_PERIOD": 10.0,
+    "//": "10ns = 100 MHz target frequency",
+    
+    "//": "=== Die Area ===",
+    "//": "Target: ~30mm² = 5500µm × 5500µm",
+    "FP_SIZING": "absolute",
+    "DIE_AREA": "0 0 5500 5500",
+    "CORE_AREA": "30 30 5470 5470",
+    
+    "//": "=== This is a MACRO, not top-level ===",
+    "DESIGN_IS_CORE": false,
+    
+    "//": "=== Placement ===",
+    "PL_TARGET_DENSITY": 0.40,
+    "PL_ROUTABILITY_DRIVEN": true,
+    "PL_TIME_DRIVEN": true,
+    "//": "Lower density for IO subsystem - more routing overhead",
+    
+    "//": "=== Synthesis ===",
+    "SYNTH_STRATEGY": "AREA 2",
+    "SYNTH_MAX_FANOUT": 8,
+    "SYNTH_BUFFERING": true,
+    
+    "//": "=== CTS ===",
+    "CTS_TARGET_SKEW": 150,
+    "CTS_SINK_CLUSTERING_SIZE": 30,
+    
+    "//": "=== Routing ===",
+    "GRT_ADJUSTMENT": 0.25,
+    "GRT_OVERFLOW_ITERS": 120,
+    
+    "//": "=== IO considerations ===",
+    "//": "This subsystem has significant IO pin count:",
+    "//": "- Parallel host: 16-bit data + 8-bit addr + control = ~30 pins",
+    "//": "- SPI: 4 pins (SCLK, MOSI, MISO, CS#)",
+    "//": "- GPIO: 8 bidirectional pins",
+    "//": "- IRQ: 1 output",
+    "//": "- AXI-Lite master: ~50 pins",
+    "//": "Total: ~100 external interface pins",
+    
+    "//": "=== Signoff ===",
+    "RUN_KLAYOUT_XOR": true,
+    "RUN_MAGIC_DRC": true,
+    "RUN_LVS": true,
+    "QUIT_ON_DRC_ERROR": true,
+    "QUIT_ON_LVS_ERROR": true,
+    "QUIT_ON_TIMING_VIOLATIONS": false,
+    "//": "Allow timing violations initially, fix iteratively",
+    
+    "//": "=== Technology ===",
+    "PDK": "sky130A",
+    "STD_CELL_LIBRARY": "sky130_fd_sc_hd",
+    
+    "//": "=== Antenna protection ===",
+    "DIODE_INSERTION_STRATEGY": 3,
+    
+    "//": "=== Outputs for integration at SoC level ===",
+    "GENERATE_FINAL_SUMMARY_REPORT": true,
+    
+    "VERILOG_DEFINES": [
+        "SYNTHESIS_SKY130",
+        "LEVEL3_SUBSYSTEM"
+    ]
+}

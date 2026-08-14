@@ -1,0 +1,14 @@
+# Memory modules analysis
+read_verilog -sv ../rtl/common/popcount.v
+read_verilog -sv ../rtl/common/ternary_mac.v
+read_verilog -sv ../rtl/memory/activation_buffer.v
+read_verilog -sv ../rtl/memory/embedding_rom.v
+read_verilog -sv ../rtl/memory/kv_cache.v
+read_verilog -sv ../rtl/memory/memory_controller.v
+
+hierarchy -check
+proc
+opt
+techmap
+opt
+stat

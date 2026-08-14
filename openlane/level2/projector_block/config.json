@@ -1,0 +1,85 @@
+{
+    "//": "=======================================================================",
+    "//": "Projector Block (Vision-to-LLM Projection) - Level 2 Macro",
+    "//": "=======================================================================",
+    "//": "2-layer MLP projecting vision embeddings (768-dim) to LLM space (576-dim)",
+    "//": "Architecture: Linear(768→1152) → GELU → Linear(1152→576)",
+    "//": "Uses 64-wide ternary MAC arrays for compute efficiency.",
+    
+    "DESIGN_NAME": "projector_block",
+    
+    "VERILOG_FILES": [
+        "dir::src/projector_block.v"
+    ],
+    
+    "//": "=== Clock ===",
+    "CLOCK_PORT": "clk",
+    "CLOCK_PERIOD": 12.5,
+    "//": "12.5ns = 80 MHz target for Level 2 block",
+    
+    "//": "=== Die Area ===",
+    "//": "Target: ~10mm² = 3200µm × 3200µm",
+    "FP_SIZING": "absolute",
+    "DIE_AREA": "0 0 3200 3200",
+    "CORE_AREA": "40 40 3160 3160",
+    
+    "//": "=== This is a MACRO for Level 3 integration ===",
+    "DESIGN_IS_CORE": false,
+    
+    "//": "=== Placement ===",
+    "//": "Lower density for large buffers and LUT storage",
+    "PL_TARGET_DENSITY": 0.45,
+    "PL_ROUTABILITY_DRIVEN": true,
+    "PL_TIME_DRIVEN": true,
+    
+    "//": "=== Synthesis ===",
+    "//": "Area-focused synthesis for projector (not as reused as primitives)",
+    "SYNTH_STRATEGY": "AREA 3",
+    "SYNTH_MAX_FANOUT": 8,
+    "//": "Higher fanout for wide data paths",
+    
+    "//": "=== Clock Tree Synthesis ===",
+    "CTS_TARGET_SKEW": 150,
+    "CTS_SINK_CLUSTERING_SIZE": 25,
+    "//": "Relaxed skew for larger area",
+    
+    "//": "=== Routing ===",
+    "GRT_ADJUSTMENT": 0.25,
+    "//": "Moderate routing adjustment for complex interconnect",
+    
+    "//": "=== Signoff ===",
+    "RUN_KLAYOUT_XOR": true,
+    "RUN_MAGIC_DRC": true,
+    "RUN_LVS": true,
+    "QUIT_ON_DRC_ERROR": true,
+    "QUIT_ON_LVS_ERROR": true,
+    "QUIT_ON_TIMING_VIOLATIONS": false,
+    "//": "Allow timing violations initially for Level 2",
+    
+    "//": "=== Technology ===",
+    "PDK": "sky130A",
+    "STD_CELL_LIBRARY": "sky130_fd_sc_hd",
+    
+    "//": "=== Antenna protection ===",
+    "DIODE_INSERTION_STRATEGY": 3,
+    
+    "//": "=== Memory Macros ===",
+    "//": "GELU LUT can use standard cell memory or be synthesized as registers",
+    "//": "For better area, could integrate sky130_sram_macros in future",
+    
+    "//": "=== Pin Placement ===",
+    "//": "Input on left, output on right, weights on top/bottom",
+    "FP_PIN_ORDER_CFG": "dir::pin_order.cfg",
+    
+    "//": "=== Power Planning ===",
+    "FP_PDN_CORE_RING": true,
+    "FP_PDN_VPITCH": 100,
+    "FP_PDN_HPITCH": 100,
+    
+    "GENERATE_FINAL_SUMMARY_REPORT": true,
+    
+    "VERILOG_DEFINES": [
+        "SYNTHESIS_SKY130",
+        "LEVEL2_MACRO"
+    ]
+}
