@@ -286,10 +286,36 @@ The `model/` directory contains comprehensive tools for quantizing SmolVLM-256M:
 | Tool | Purpose |
 |------|---------|
 | `validate_quantization.py` | Layer-by-layer quality validation |
+| `semantic_equivalence_test.py` | **Verify original vs quantized model equivalence** |
 | `benchmark_suite.py` | VQA, TextVQA, captioning benchmarks |
 | `perplexity_test.py` | Language model perplexity measurement |
 | `visual_qa_test.py` | Visual QA accuracy testing |
 | `compare_outputs.py` | Side-by-side output comparison |
+
+#### Semantic Equivalence Testing
+
+Verify that quantized models produce semantically equivalent results:
+
+```bash
+# Run with default settings (normal tolerance)
+python model/validation/semantic_equivalence_test.py
+
+# Strict tolerance (for production-critical applications)
+python model/validation/semantic_equivalence_test.py --tolerance strict
+
+# Relaxed tolerance (for experimentation)
+python model/validation/semantic_equivalence_test.py --tolerance relaxed --alpha 0.6
+
+# Export detailed report
+python model/validation/semantic_equivalence_test.py --output report.json
+```
+
+**Tolerance Levels:**
+| Level | Weight Cosine | Token Match | Use Case |
+|-------|---------------|-------------|----------|
+| strict | > 0.95 | > 90% | Production deployment |
+| normal | > 0.90 | > 80% | Development (default) |
+| relaxed | > 0.80 | > 70% | Experimentation |
 
 ### Analysis Tools
 
