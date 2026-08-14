@@ -205,6 +205,9 @@ See [QUANTIZATION_GUIDE.md](model/QUANTIZATION_GUIDE.md) for detailed instructio
 # E2E Pipeline Test (recommended first test)
 python test_e2e_pipeline.py
 
+# Semantic equivalence test
+python model/validation/semantic_equivalence_test.py
+
 # RTL simulation with cocotb
 cd rtl/tb && make sim
 
@@ -214,9 +217,62 @@ pytest tests/
 
 📖 **See [E2E Simulation Guide](docs/E2E_SIMULATION_GUIDE.md)** for detailed instructions on running the full simulation pipeline.
 
+---
+
+## Quantization Validation Results
+
+We validated that ternary-quantized weights preserve semantic equivalence with the original FP32 model.
+
+📖 **Full Report:** [Semantic Equivalence Results](docs/SEMANTIC_EQUIVALENCE_RESULTS.md)
+
+### Summary (SmolVLM-256M, α=0.7)
+
+| Test | Score | Threshold | Status |
+|------|-------|-----------|--------|
+| Weight Similarity | 0.8787 | 0.90 | ⚠️ Expected |
+| Activation Similarity | **0.9969** | 0.90 | ✅ Pass |
+| Output Similarity | **0.9968** | 0.90 | ✅ Pass |
+| Semantic Similarity | **0.8004** | 0.80 | ✅ Pass |
+
+**Key Insight:** While individual weights show ~12% reconstruction error (inherent to ternary quantization), the model's **functional behavior is preserved** with >99% activation/output similarity.
+
+### What This Means
+
+```
+Original Model                    SiLens Ternary Model
+┌─────────────────┐               ┌─────────────────┐
+│ FP32 Weights    │               │ {-1, 0, +1}     │
+│ 1024 MB         │    ──────►    │ 64 MB (16x ↓)   │
+│ cos(w,w')=1.00  │               │ cos(w,w')=0.88  │
+└────────┬────────┘               └────────┬────────┘
+         │                                 │
+         ▼                                 ▼
+┌─────────────────┐               ┌─────────────────┐
+│ Activations     │    ═══════    │ Activations     │
+│                 │   99.7% same  │                 │
+└────────┬────────┘               └────────┬────────┘
+         │                                 │
+         ▼                                 ▼
+┌─────────────────┐               ┌─────────────────┐
+│ Output: "A cat  │    ═══════    │ Output: "A cat  │
+│ on the couch"   │   Semantic    │ resting on the  │
+│                 │   Equivalent  │ sofa"           │
+└─────────────────┘               └─────────────────┘
+```
+
+### Sparsity Bonus
+
+~44% of weights are quantized to zero, enabling:
+- **Zero-skipping:** No computation needed for zero weights
+- **Reduced routing:** Fewer metal traces in silicon
+- **Power savings:** Less switching activity
+
+---
+
 ## Architecture Overview
 
 📖 **Deep Dives:**
+- [Semantic Equivalence Results](docs/SEMANTIC_EQUIVALENCE_RESULTS.md) — Experimental validation that ternary quantization preserves model behavior
 - [Attention Mechanism](docs/architecture/ATTENTION_MECHANISM.md) — How SiLens implements hardware-optimized attention with ternary weights, KV caching, RoPE, and approximate softmax
 - [Full Architecture](docs/architecture/ARCHITECTURE.md) — Complete system design
 - [E2E Simulation Guide](docs/E2E_SIMULATION_GUIDE.md) — How to run the RTL simulation pipeline
