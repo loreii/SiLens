@@ -23,11 +23,12 @@ This eliminates the memory bottleneck that limits traditional AI accelerators, e
 | Component | Status |
 |-----------|--------|
 | Architecture specification | 🟡 In progress |
-| RTL design (Verilog) | 🔴 Not started |
+| RTL design (Verilog) | 🟢 Core modules complete |
+| RTL simulation | 🟢 E2E pipeline verified |
 | FPGA prototype | 🔴 Not started |
 | Physical design | 🔴 Not started |
 | PCB design | 🔴 Not started |
-| Software/drivers | 🔴 Not started |
+| Software/drivers | 🟡 SDK in progress |
 
 ## Repository Structure
 
@@ -198,21 +199,27 @@ python model/conversion/quantize_ternary.py --model HuggingFaceTB/SmolVLM-256M-I
 
 See [QUANTIZATION_GUIDE.md](model/QUANTIZATION_GUIDE.md) for detailed instructions.
 
-### 5. Run Tests (when available)
+### 5. Run Tests
 
 ```bash
-# RTL simulation
-make sim
+# E2E Pipeline Test (recommended first test)
+python test_e2e_pipeline.py
+
+# RTL simulation with cocotb
+cd rtl/tb && make sim
 
 # Python tests
 pytest tests/
 ```
+
+📖 **See [E2E Simulation Guide](docs/E2E_SIMULATION_GUIDE.md)** for detailed instructions on running the full simulation pipeline.
 
 ## Architecture Overview
 
 📖 **Deep Dives:**
 - [Attention Mechanism](docs/architecture/ATTENTION_MECHANISM.md) — How SiLens implements hardware-optimized attention with ternary weights, KV caching, RoPE, and approximate softmax
 - [Full Architecture](docs/architecture/ARCHITECTURE.md) — Complete system design
+- [E2E Simulation Guide](docs/E2E_SIMULATION_GUIDE.md) — How to run the RTL simulation pipeline
 
 ### Model: SmolVLM-256M
 
