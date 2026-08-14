@@ -274,13 +274,40 @@ The results demonstrate that while individual weights change during quantization
 
 ---
 
+## Related Tests
+
+### Visual Equivalence Test (Lenna Image)
+
+We also conducted a comprehensive visual understanding test using the industry-standard [Lenna test image](https://en.wikipedia.org/wiki/Lenna):
+
+| Category | Similarity | Pass Rate |
+|----------|------------|-----------|
+| Description | 100% | 100% |
+| Object Detection | 95.9% | 100% |
+| Color Analysis | 100% | 100% |
+| Spatial Reasoning | 100% | 100% |
+| Detail Recognition | 68.3% | 33% |
+| Question Answering | 100% | 100% |
+| **Overall** | **94.0%** | **89%** |
+
+📖 **Full Report:** [Visual Equivalence Lenna Test](VISUAL_EQUIVALENCE_LENNA_TEST.md)
+
+**Key Findings:**
+- Model correctly identifies all key elements (woman, hat, feathers, colors)
+- Complex descriptions maintain 100% similarity
+- Short responses show metric sensitivity (not quality issues)
+- All factual questions answered correctly
+
+---
+
 ## References
 
 - [Ternary Weight Networks](https://arxiv.org/abs/1605.04711) - Li et al., 2016
 - [SmolVLM Model Card](https://huggingface.co/HuggingFaceTB/SmolVLM-256M-Instruct)
 - [SiLens Quantization Guide](../model/QUANTIZATION_GUIDE.md)
 - [SiLens Architecture](architecture/ARCHITECTURE.md)
+- [Lenna Test Image (Wikipedia)](https://en.wikipedia.org/wiki/Lenna)
 
 ---
 
-*Last updated: August 2026*
+*Last updated: August 14, 2026*

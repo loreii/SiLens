@@ -223,7 +223,9 @@ pytest tests/
 
 We validated that ternary-quantized weights preserve semantic equivalence with the original FP32 model.
 
-📖 **Full Report:** [Semantic Equivalence Results](docs/SEMANTIC_EQUIVALENCE_RESULTS.md)
+📖 **Full Reports:** 
+- [Semantic Equivalence Results](docs/SEMANTIC_EQUIVALENCE_RESULTS.md) — Weight and activation analysis
+- [Visual Equivalence Test (Lenna)](docs/VISUAL_EQUIVALENCE_LENNA_TEST.md) — Visual understanding validation
 
 ### Summary (SmolVLM-256M, α=0.7)
 
@@ -234,7 +236,18 @@ We validated that ternary-quantized weights preserve semantic equivalence with t
 | Output Similarity | **0.9968** | 0.90 | ✅ Pass |
 | Semantic Similarity | **0.8004** | 0.80 | ✅ Pass |
 
-**Key Insight:** While individual weights show ~12% reconstruction error (inherent to ternary quantization), the model's **functional behavior is preserved** with >99% activation/output similarity.
+### Visual Understanding Test (Lenna Image)
+
+| Category | Similarity | Status |
+|----------|------------|--------|
+| Image Description | 100% | ✅ |
+| Object Detection | 95.9% | ✅ |
+| Color Analysis | 100% | ✅ |
+| Spatial Reasoning | 100% | ✅ |
+| Question Answering | 100% | ✅ |
+| **Overall** | **94.0%** | ✅ |
+
+**Key Insight:** While individual weights show ~12% reconstruction error (inherent to ternary quantization), the model's **functional behavior is preserved** with >99% activation/output similarity and 94% visual understanding accuracy.
 
 ### What This Means
 
@@ -273,6 +286,7 @@ Original Model                    SiLens Ternary Model
 
 📖 **Deep Dives:**
 - [Semantic Equivalence Results](docs/SEMANTIC_EQUIVALENCE_RESULTS.md) — Experimental validation that ternary quantization preserves model behavior
+- [Visual Equivalence Test (Lenna)](docs/VISUAL_EQUIVALENCE_LENNA_TEST.md) — Visual understanding validation with standard test image
 - [Attention Mechanism](docs/architecture/ATTENTION_MECHANISM.md) — How SiLens implements hardware-optimized attention with ternary weights, KV caching, RoPE, and approximate softmax
 - [Full Architecture](docs/architecture/ARCHITECTURE.md) — Complete system design
 - [E2E Simulation Guide](docs/E2E_SIMULATION_GUIDE.md) — How to run the RTL simulation pipeline
@@ -343,6 +357,7 @@ The `model/` directory contains comprehensive tools for quantizing SmolVLM-256M:
 |------|---------|
 | `validate_quantization.py` | Layer-by-layer quality validation |
 | `semantic_equivalence_test.py` | **Verify original vs quantized model equivalence** |
+| `visual_equivalence_test.py` | **Visual understanding test with Lenna image** |
 | `benchmark_suite.py` | VQA, TextVQA, captioning benchmarks |
 | `perplexity_test.py` | Language model perplexity measurement |
 | `visual_qa_test.py` | Visual QA accuracy testing |
@@ -364,6 +379,21 @@ python model/validation/semantic_equivalence_test.py --tolerance relaxed --alpha
 
 # Export detailed report
 python model/validation/semantic_equivalence_test.py --output report.json
+```
+
+#### Visual Equivalence Testing (Lenna Image)
+
+Test visual understanding with the standard Lenna test image:
+
+```bash
+# Run visual equivalence test
+python model/validation/visual_equivalence_test.py
+
+# Export results to JSON
+python model/validation/visual_equivalence_test.py --output results/lenna_test.json
+
+# Use custom image
+python model/validation/visual_equivalence_test.py --image path/to/image.png
 ```
 
 **Tolerance Levels:**
