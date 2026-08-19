@@ -79,24 +79,27 @@ module rms_norm_block #(
     assign ready_in = (state == ST_IDLE);
     
     // =========================================================================
-    // Input loading
+    // Input loading - use generate for parallel loading
     // =========================================================================
     
-    integer i;
-    always @(posedge clk) begin
-        if (state == ST_IDLE && valid_in) begin
-            for (i = 0; i < DIM; i = i + 1) begin
-                x_buf[i] <= $signed(x_in[i*ACT_WIDTH +: ACT_WIDTH]);
+    genvar gi;
+    generate
+        for (gi = 0; gi < DIM; gi = gi + 1) begin : gen_load
+            always @(posedge clk) begin
+                if (state == ST_IDLE && valid_in) begin
+                    x_buf[gi] <= $signed(x_in[gi*ACT_WIDTH +: ACT_WIDTH]);
+                end
             end
         end
-    end
+    endgenerate
     
     // =========================================================================
     // Sum of squares computation (iterative)
     // =========================================================================
     
-    wire signed [ACT_WIDTH-1:0] x_curr = x_buf[idx];
+    wire signed [ACT_WIDTH-1:0] x_curr = x_buf[idx[DIM_BITS-1:0]];
     wire signed [2*ACT_WIDTH-1:0] x_sq = x_curr * x_curr;
+    wire [ACC_WIDTH-1:0] x_sq_ext = {{(ACC_WIDTH-2*ACT_WIDTH){1'b0}}, x_sq};
     
     // =========================================================================
     // Newton-Raphson inverse square root
@@ -114,14 +117,14 @@ module rms_norm_block #(
     // =========================================================================
     
     wire signed [ACC_WIDTH-1:0] x_scaled;
-    wire signed [ACT_WIDTH-1:0] gamma_curr = $signed(gamma[idx*ACT_WIDTH +: ACT_WIDTH]);
+    wire signed [ACT_WIDTH-1:0] gamma_curr = $signed(gamma[idx[DIM_BITS-1:0]*ACT_WIDTH +: ACT_WIDTH]);
     
     assign x_scaled = ($signed({x_curr[ACT_WIDTH-1], x_curr}) * $signed(inv_rms)) >>> FRAC_BITS;
     
     // Apply gamma and saturate
     wire signed [ACC_WIDTH-1:0] y_gamma = (x_scaled * $signed({1'b0, gamma_curr})) >>> FRAC_BITS;
     
-    function signed [ACT_WIDTH-1:0] saturate;
+    function automatic signed [ACT_WIDTH-1:0] saturate;
         input signed [ACC_WIDTH-1:0] val;
         localparam MAX_VAL = (1 << (ACT_WIDTH-1)) - 1;
         localparam MIN_VAL = -(1 << (ACT_WIDTH-1));
@@ -167,15 +170,15 @@ module rms_norm_block #(
                 
                 ST_SUM_SQ: begin
                     // Accumulate x^2
-                    sum_sq <= sum_sq + x_sq;
+                    sum_sq <= sum_sq + x_sq_ext;
                     
-                    if (idx == DIM - 1) begin
+                    if (idx[DIM_BITS-1:0] == DIM - 1) begin
                         state <= ST_INV_SQRT;
                         nr_iter <= 0;
                         // Initial guess: 1.0 in fixed-point
                         y_nr <= 1 << FRAC_BITS;
                         // Add epsilon and compute mean
-                        sum_sq <= ((sum_sq + x_sq) >> DIM_BITS) + EPS;
+                        sum_sq <= ((sum_sq + x_sq_ext) >> DIM_BITS) + EPS;
                     end else begin
                         idx <= idx + 1;
                     end
@@ -196,9 +199,9 @@ module rms_norm_block #(
                 
                 ST_NORMALIZE: begin
                     // Apply normalization element by element
-                    y_out[idx*ACT_WIDTH +: ACT_WIDTH] <= saturate(y_gamma);
+                    y_out[idx[DIM_BITS-1:0]*ACT_WIDTH +: ACT_WIDTH] <= saturate(y_gamma);
                     
-                    if (idx == DIM - 1) begin
+                    if (idx[DIM_BITS-1:0] == DIM - 1) begin
                         state <= ST_OUTPUT;
                     end else begin
                         idx <= idx + 1;

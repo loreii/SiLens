@@ -88,25 +88,27 @@ module layer_norm_block #(
     assign ready_in = (state == ST_IDLE);
     
     // =========================================================================
-    // Input loading
+    // Input loading - use generate for parallel loading (Verilator compatible)
     // =========================================================================
     
-    integer i;
-    always @(posedge clk) begin
-        if (state == ST_IDLE && valid_in) begin
-            for (i = 0; i < DIM; i = i + 1) begin
-                x_buf[i] <= $signed(x_in[i*ACT_WIDTH +: ACT_WIDTH]);
+    genvar gi;
+    generate
+        for (gi = 0; gi < DIM; gi = gi + 1) begin : gen_load
+            always @(posedge clk) begin
+                if (state == ST_IDLE && valid_in) begin
+                    x_buf[gi] <= $signed(x_in[gi*ACT_WIDTH +: ACT_WIDTH]);
+                end
             end
         end
-    end
+    endgenerate
     
     // =========================================================================
     // Current element access
     // =========================================================================
     
-    wire signed [ACT_WIDTH-1:0] x_curr = x_buf[idx];
-    wire signed [ACT_WIDTH-1:0] gamma_curr = $signed(gamma[idx*ACT_WIDTH +: ACT_WIDTH]);
-    wire signed [ACT_WIDTH-1:0] beta_curr = $signed(beta[idx*ACT_WIDTH +: ACT_WIDTH]);
+    wire signed [ACT_WIDTH-1:0] x_curr = x_buf[idx[DIM_BITS-1:0]];
+    wire signed [ACT_WIDTH-1:0] gamma_curr = $signed(gamma[idx[DIM_BITS-1:0]*ACT_WIDTH +: ACT_WIDTH]);
+    wire signed [ACT_WIDTH-1:0] beta_curr = $signed(beta[idx[DIM_BITS-1:0]*ACT_WIDTH +: ACT_WIDTH]);
     
     // =========================================================================
     // Mean calculation: sum(x) / N
@@ -145,17 +147,15 @@ module layer_norm_block #(
     // Saturation function
     // =========================================================================
     
-    function signed [ACT_WIDTH-1:0] saturate;
+    function automatic signed [ACT_WIDTH-1:0] saturate;
         input signed [ACC_WIDTH-1:0] val;
-        reg signed [ACT_WIDTH-1:0] max_val;
-        reg signed [ACT_WIDTH-1:0] min_val;
+        localparam signed [ACT_WIDTH-1:0] MAX_VAL = {1'b0, {(ACT_WIDTH-1){1'b1}}};  // +127 for 8-bit
+        localparam signed [ACT_WIDTH-1:0] MIN_VAL = {1'b1, {(ACT_WIDTH-1){1'b0}}};  // -128 for 8-bit
         begin
-            max_val = {1'b0, {(ACT_WIDTH-1){1'b1}}};  // +127 for 8-bit
-            min_val = {1'b1, {(ACT_WIDTH-1){1'b0}}};  // -128 for 8-bit
-            if (val > $signed({{(ACC_WIDTH-ACT_WIDTH){1'b0}}, max_val}))
-                saturate = max_val;
-            else if (val < $signed({{(ACC_WIDTH-ACT_WIDTH){1'b1}}, min_val}))
-                saturate = min_val;
+            if (val > $signed({{(ACC_WIDTH-ACT_WIDTH){1'b0}}, MAX_VAL}))
+                saturate = MAX_VAL;
+            else if (val < $signed({{(ACC_WIDTH-ACT_WIDTH){1'b1}}, MIN_VAL}))
+                saturate = MIN_VAL;
             else
                 saturate = val[ACT_WIDTH-1:0];
         end
@@ -205,7 +205,7 @@ module layer_norm_block #(
                 ST_CALC_MEAN: begin
                     sum_x <= sum_x + {{(ACC_WIDTH-ACT_WIDTH){x_curr[ACT_WIDTH-1]}}, x_curr};
                     
-                    if (idx == DIM - 1) begin
+                    if (idx[DIM_BITS-1:0] == DIM - 1) begin
                         state <= ST_CALC_VAR;
                         mean <= (sum_x + {{(ACC_WIDTH-ACT_WIDTH){x_curr[ACT_WIDTH-1]}}, x_curr}) >>> DIM_BITS;
                         idx <= 0;
@@ -221,7 +221,7 @@ module layer_norm_block #(
                 ST_CALC_VAR: begin
                     sum_var <= sum_var + x_centered_sq[ACC_WIDTH-1:0];
                     
-                    if (idx == DIM - 1) begin
+                    if (idx[DIM_BITS-1:0] == DIM - 1) begin
                         state <= ST_INV_SQRT;
                         // Compute variance = sum_var / N + epsilon
                         variance <= ((sum_var + x_centered_sq[ACC_WIDTH-1:0]) >> DIM_BITS) + EPS;
@@ -253,9 +253,9 @@ module layer_norm_block #(
                 // NORMALIZE: Apply normalization element by element
                 // ---------------------------------------------------------
                 ST_NORMALIZE: begin
-                    y_out[idx*ACT_WIDTH +: ACT_WIDTH] <= saturate(y_biased);
+                    y_out[idx[DIM_BITS-1:0]*ACT_WIDTH +: ACT_WIDTH] <= saturate(y_biased);
                     
-                    if (idx == DIM - 1) begin
+                    if (idx[DIM_BITS-1:0] == DIM - 1) begin
                         state <= ST_OUTPUT;
                     end else begin
                         idx <= idx + 1;

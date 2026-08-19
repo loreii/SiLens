@@ -13,8 +13,8 @@
     
     "//": "=== Clock ===",
     "CLOCK_PORT": "clk",
-    "CLOCK_PERIOD": 10.0,
-    "//": "10ns = 100 MHz, but we start conservative",
+    "CLOCK_PERIOD": 14.0,
+    "//": "14ns = ~71 MHz, relaxed from 100MHz based on synthesis results",
     
     "//": "=== Die Area ===",
     "//": "Target: ~1mm² = 1000µm × 1000µm",

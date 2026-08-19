@@ -16,7 +16,8 @@
 #   silens-edge  - Compact 50mm² Edge Classifier
 #
 # Requirements:
-#   - OpenLane installed and in PATH
+#   - OpenLane installed (Docker-based)
+#   - Docker running
 #   - SKY130 PDK installed
 # =============================================================================
 
@@ -31,8 +32,30 @@ VARIANT ?= silens-vlm
 SHARED_DIR := $(CURDIR)
 VARIANT_DIR := $(CURDIR)/../variants/$(VARIANT)/openlane
 
-# Flow command
-FLOW = cd $(OPENLANE_ROOT) && ./flow.tcl -design
+# OpenLane Docker flow command
+# Uses make mount which handles the Docker invocation properly
+FLOW = cd $(OPENLANE_ROOT) && make mount && ./flow.tcl -design
+
+# Alternative: Direct Docker invocation for single designs
+# This mounts the SiLens design directory into the container
+DOCKER_RUN = docker run --rm \
+	-v $(OPENLANE_ROOT):/openlane \
+	-v $(PDK_ROOT):$(PDK_ROOT) \
+	-v $(SHARED_DIR):/designs \
+	-e PDK_ROOT=$(PDK_ROOT) \
+	-e PDK=$(PDK) \
+	-u $(shell id -u):$(shell id -g) \
+	efabless/openlane:latest
+
+# Simpler: Use OpenLane's built-in make target
+# This is the recommended approach
+define run_synthesis
+	@echo "=== Synthesizing $(1) ===" && \
+	mkdir -p $(OPENLANE_ROOT)/designs/$(notdir $(1)) && \
+	cp -r $(1)/* $(OPENLANE_ROOT)/designs/$(notdir $(1))/ && \
+	cd $(OPENLANE_ROOT) && \
+	make DESIGN=$(notdir $(1)) TAG=run1
+endef
 
 # =============================================================================
 # Level 1: Compute Primitives (SHARED across all variants)
@@ -52,32 +75,25 @@ level1: $(LEVEL1_BLOCKS)
 	@echo "=== Level 1 (shared primitives) complete ==="
 
 level1/ternary_mac_array_64: level1/ternary_mac_array_64/config.json
-	@echo "=== Synthesizing ternary_mac_array_64 ==="
-	$(FLOW) $(SHARED_DIR)/$@ -tag run1
+	$(call run_synthesis,$(SHARED_DIR)/$@)
 
 level1/rms_norm_block: level1/rms_norm_block/config.json
-	@echo "=== Synthesizing rms_norm_block ==="
-	$(FLOW) $(SHARED_DIR)/$@ -tag run1
+	$(call run_synthesis,$(SHARED_DIR)/$@)
 
 level1/layer_norm_block: level1/layer_norm_block/config.json
-	@echo "=== Synthesizing layer_norm_block ==="
-	$(FLOW) $(SHARED_DIR)/$@ -tag run1
+	$(call run_synthesis,$(SHARED_DIR)/$@)
 
 level1/softmax_unit: level1/softmax_unit/config.json
-	@echo "=== Synthesizing softmax_unit ==="
-	$(FLOW) $(SHARED_DIR)/$@ -tag run1
+	$(call run_synthesis,$(SHARED_DIR)/$@)
 
 level1/silu_unit: level1/silu_unit/config.json
-	@echo "=== Synthesizing silu_unit ==="
-	$(FLOW) $(SHARED_DIR)/$@ -tag run1
+	$(call run_synthesis,$(SHARED_DIR)/$@)
 
 level1/attention_head: level1/attention_head/config.json
-	@echo "=== Synthesizing attention_head ==="
-	$(FLOW) $(SHARED_DIR)/$@ -tag run1
+	$(call run_synthesis,$(SHARED_DIR)/$@)
 
 level1/mlp_block: level1/mlp_block/config.json
-	@echo "=== Synthesizing mlp_block ==="
-	$(FLOW) $(SHARED_DIR)/$@ -tag run1
+	$(call run_synthesis,$(SHARED_DIR)/$@)
 
 # =============================================================================
 # Level 2: Functional Blocks (SHARED across all variants)
