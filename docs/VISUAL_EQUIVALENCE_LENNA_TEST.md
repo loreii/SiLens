@@ -263,7 +263,7 @@ SILENS VISUAL EQUIVALENCE TEST
 Image: lenna.png
 Model: HuggingFaceTB/SmolVLM-256M-Instruct
 Threshold: 70%
-Loaded image: /Users/lpavesi/loreii/1bit_usb_llm/SiLens/model/validation/test_images/lenna.png
+Loaded image: model/validation/test_images/lenna.png
   Size: (512, 512)
   Mode: RGB
 Loading model: HuggingFaceTB/SmolVLM-256M-Instruct...
@@ -442,7 +442,7 @@ python -m json.tool model/validation/lenna_results.json
 {
   "metadata": {
     "image_name": "lenna.png",
-    "image_path": "/Users/lpavesi/loreii/1bit_usb_llm/SiLens/model/validation/test_images/lenna.png",
+    "image_path": "model/validation/test_images/lenna.png",
     "model_name": "HuggingFaceTB/SmolVLM-256M-Instruct",
     "test_date": "2026-08-14T12:33:20.002465"
   },
