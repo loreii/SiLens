@@ -1,0 +1,110 @@
+{
+    "//": "=======================================================================",
+    "//": "Classifier Head - Level 3 Synthesis Block for SiLens-Edge",
+    "//": "=======================================================================",
+    "//": "Lightweight classifier that maps vision features to class labels.",
+    "//": "NOT a language model - single-token classification only.",
+    "//": "",
+    "//": "Architecture:",
+    "//": "  Vision features (192-dim) → Projector (192→128)",
+    "//": "                           → 4× Transformer blocks (self-attention)",
+    "//": "                           → Classification head (128→1000)",
+    "//": "                           → Argmax → Class label",
+    "//": "",
+    "//": "Specifications:",
+    "//": "  - Input: 192-dimensional vision features from NanoViT",
+    "//": "  - Hidden dimension: 128",
+    "//": "  - Attention heads: 4 per layer (16 total)",
+    "//": "  - MLP hidden: 256",
+    "//": "  - Transformer layers: 4",
+    "//": "  - Output classes: 1000 (ImageNet-style)",
+    "//": "  - No KV cache needed (single forward pass)",
+    "//": "",
+    "//": "Parameter budget: ~7M ternary weights",
+    "//": "  - Projector: 192×128 = 24.6K",
+    "//": "  - Per layer: Q/K/V/O (4×128×128) + MLP (128×256×2) = 131K",
+    "//": "  - 4 layers: 524K",
+    "//": "  - Classification head: 128×1000 = 128K",
+    "//": "  - Total: ~677K weights (well under 7M budget)",
+    "//": "",
+    "//": "Target: ~10mm² on SKY130 (3162µm × 3162µm)",
+    
+    "DESIGN_NAME": "classifier_head",
+    
+    "VERILOG_FILES": [
+        "dir::src/classifier_head.v"
+    ],
+    
+    "//": "=== Clock ===",
+    "CLOCK_PORT": "clk",
+    "CLOCK_PERIOD": 5.0,
+    "//": "5ns = 200 MHz target frequency",
+    
+    "//": "=== Die Area ===",
+    "//": "Target: ~10mm² = 3162µm × 3162µm (sqrt(10M) ≈ 3162)",
+    "FP_SIZING": "absolute",
+    "DIE_AREA": "0 0 3200 3200",
+    "CORE_AREA": "50 50 3150 3150",
+    
+    "//": "=== This is a MACRO for Level 4 (SoC) integration ===",
+    "DESIGN_IS_CORE": false,
+    
+    "//": "=== Placement ===",
+    "PL_TARGET_DENSITY": 0.55,
+    "PL_ROUTABILITY_DRIVEN": true,
+    "PL_TIME_DRIVEN": true,
+    "//": "Moderate density for this compact classifier",
+    
+    "//": "=== Synthesis ===",
+    "SYNTH_STRATEGY": "AREA 3",
+    "SYNTH_MAX_FANOUT": 8,
+    "SYNTH_BUFFERING": true,
+    "SYNTH_SIZING": true,
+    "//": "Maximum area optimization for edge deployment",
+    
+    "//": "=== CTS ===",
+    "CTS_TARGET_SKEW": 200,
+    "CTS_SINK_CLUSTERING_SIZE": 30,
+    "//": "Tight skew for 200MHz operation",
+    
+    "//": "=== Routing ===",
+    "GRT_ADJUSTMENT": 0.25,
+    "GRT_OVERFLOW_ITERS": 150,
+    "DRT_OPT_ITERS": 80,
+    "//": "Standard routing for compact design",
+    
+    "//": "=== Signoff ===",
+    "RUN_KLAYOUT_XOR": true,
+    "RUN_MAGIC_DRC": true,
+    "RUN_LVS": true,
+    "QUIT_ON_DRC_ERROR": true,
+    "QUIT_ON_LVS_ERROR": true,
+    "QUIT_ON_TIMING_VIOLATIONS": false,
+    "//": "Clean signoff for Level 3",
+    
+    "//": "=== Technology ===",
+    "PDK": "sky130A",
+    "STD_CELL_LIBRARY": "sky130_fd_sc_hd",
+    
+    "//": "=== Antenna protection ===",
+    "DIODE_INSERTION_STRATEGY": 3,
+    "//": "Standard antenna protection",
+    
+    "//": "=== Power Distribution Network ===",
+    "FP_PDN_CORE_RING": true,
+    "FP_PDN_ENABLE_RAILS": true,
+    "VDD_NETS": "vccd1",
+    "GND_NETS": "vssd1",
+    "//": "Power grid for 10mm² die",
+    
+    "//": "=== Outputs for Level 4 reuse ===",
+    "GENERATE_FINAL_SUMMARY_REPORT": true,
+    
+    "VERILOG_DEFINES": [
+        "SYNTHESIS_SKY130",
+        "LEVEL3_CLASSIFIER",
+        "NUM_LAYERS=4",
+        "HIDDEN_DIM=128",
+        "NUM_CLASSES=1000"
+    ]
+}

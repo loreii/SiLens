@@ -1,10 +1,35 @@
 # SiLens Development Plan
 
-> **Last Updated:** August 14, 2026  
+> **Last Updated:** August 19, 2026  
 > **Status:** Active Development  
-> **Version:** 0.1.0
+> **Version:** 0.2.0
 
 This document outlines the development roadmap for the SiLens open-source hardwired vision-language AI accelerator.
+
+---
+
+## Product Variants
+
+SiLens now supports multiple hardware variants from a shared codebase:
+
+| Variant | Die Size | Target | Status |
+|---------|----------|--------|--------|
+| **SiLens VLM** | 800mm² | Full Vision-Language Model | 🟢 Complete |
+| **SiLens Edge** | 50mm² | Ultra-fast Edge Classifier | 🟢 Complete |
+
+### Variant Architecture
+
+```
+Shared Components (openlane/level1, level2, rtl/, sdk/, drivers/)
+    │
+    ├── variants/silens-vlm/      # 800mm² VLM SoC
+    │   ├── openlane/level3/      # VLM-specific subsystems
+    │   └── openlane/level4/      # VLM top integration
+    │
+    └── variants/silens-edge/     # 50mm² Edge Classifier
+        ├── openlane/level3/      # Edge-specific blocks
+        └── openlane/level4/      # Edge top integration
+```
 
 ---
 
@@ -20,6 +45,7 @@ This document outlines the development roadmap for the SiLens open-source hardwi
 | **VLM Core** | 🟢 **Complete** | Vision + Projector + LLM integrated |
 | **OpenLane Config** | 🟢 **Complete** | 800mm² synthesis setup |
 | **Level 1-3 Hierarchy** | 🟢 **Complete** | 15 blocks RTL & configs ready |
+| **SiLens Edge Variant** | 🟢 **Complete** | 50mm² QFN-48 classifier |
 | RTL simulation (E2E pipeline) | 🟢 Complete | Icarus Verilog + cocotb |
 | Model quantization tools | 🟢 Complete | Ternary quantization working |
 | Semantic equivalence tests | 🟢 Complete | 94% visual, 87.9% weight similarity |
@@ -40,6 +66,47 @@ This document outlines the development roadmap for the SiLens open-source hardwi
 - ✅ **Parallel host interface with FPGA bridge support**
 - ✅ **OpenLane synthesis configuration for full-custom fabrication**
 - ✅ **Confirmed SkyWater 26×32mm reticle supports 800mm² single-shot**
+- ✅ **SiLens Edge variant (50mm²) complete with NanoViT + Classifier**
+
+---
+
+## SiLens Edge Specifications
+
+The Edge variant targets embedded/industrial applications:
+
+| Specification | Value |
+|---------------|-------|
+| Die Size | 50mm² (7mm × 7mm) |
+| Process | SkyWater SKY130 130nm |
+| Clock | 200MHz |
+| Power | 3W TDP |
+| Package | QFN-48 |
+| **Model** | TinyVLM-20M |
+| - Vision Encoder | NanoViT-12M (6 layers, 192-dim, 3 heads) |
+| - Classifier | 7M params (4 layers, 128-dim) |
+| **Performance** | |
+| - Latency | <1ms per inference |
+| - Throughput | 1000 FPS |
+| - Active Power | <500mW |
+| **Interfaces** | |
+| - Primary | SPI Slave (50MHz) |
+| - Config | I2C Slave |
+| - GPIO | 8 pins (trigger, class output, status) |
+
+**SiLens Edge Level 3 Blocks:**
+
+| Block | Size | Function | Status |
+|-------|------|----------|--------|
+| vision_nano | ~15mm² | NanoViT-12M encoder | 🟢 Complete |
+| classifier_head | ~10mm² | 4-layer MLP classifier | 🟢 Complete |
+| io_edge | ~5mm² | SPI/I2C/GPIO interfaces | 🟢 Complete |
+| sram_256kb | ~10mm² | Activation buffer (dual-port) | 🟢 Complete |
+
+**SiLens Edge Level 4:**
+
+| Block | Size | Function | Status |
+|-------|------|----------|--------|
+| silens_edge_soc | 50mm² | Top integration | 🟢 Complete |
 
 ---
 

@@ -1,0 +1,88 @@
+{
+    "//": "=======================================================================",
+    "//": "IO Edge Subsystem - Level 3 (SiLens Edge Variant)",
+    "//": "=======================================================================",
+    "//": "Minimal IO subsystem for embedded/industrial edge deployment.",
+    "//": "Think 'sensor peripheral' - SPI slave to MCU host, I2C config, GPIO triggers.",
+    "//": "No parallel bus, no DDR - just simple microcontroller-friendly interfaces.",
+    "//": "",
+    "//": "Architecture:",
+    "//": "  MCU Host ←SPI Slave→ Image FIFO → Inference Engine",
+    "//": "                ↓",
+    "//": "           I2C Slave → Config Registers",
+    "//": "                ↓",
+    "//": "              GPIO → TRIG_IN, CLASS_OUT[3:0], BUSY, ERROR, IRQ_N",
+    "//": "",
+    "//": "Target: ~5mm² on SKY130 (2250µm × 2250µm)",
+    
+    "DESIGN_NAME": "io_edge",
+    
+    "VERILOG_FILES": [
+        "dir::src/io_edge.v"
+    ],
+    
+    "//": "=== Clock ===",
+    "CLOCK_PORT": "clk",
+    "CLOCK_PERIOD": 5.0,
+    "//": "5ns = 200 MHz core clock",
+    "//": "SPI clock is external, up to 50 MHz (handled internally)",
+    
+    "//": "=== Die Area ===",
+    "//": "Target: ~5mm² = 2250µm × 2250µm",
+    "FP_SIZING": "absolute",
+    "DIE_AREA": "0 0 2250 2250",
+    "CORE_AREA": "20 20 2230 2230",
+    
+    "//": "=== This is a MACRO, not top-level ===",
+    "DESIGN_IS_CORE": false,
+    
+    "//": "=== Placement ===",
+    "PL_TARGET_DENSITY": 0.50,
+    "PL_ROUTABILITY_DRIVEN": true,
+    "PL_TIME_DRIVEN": true,
+    "//": "Higher density OK - simpler design with less routing complexity",
+    
+    "//": "=== Synthesis ===",
+    "SYNTH_STRATEGY": "AREA 3",
+    "SYNTH_MAX_FANOUT": 6,
+    "SYNTH_BUFFERING": true,
+    "//": "Aggressive area optimization for minimal footprint",
+    
+    "//": "=== CTS ===",
+    "CTS_TARGET_SKEW": 100,
+    "CTS_SINK_CLUSTERING_SIZE": 25,
+    
+    "//": "=== Routing ===",
+    "GRT_ADJUSTMENT": 0.20,
+    "GRT_OVERFLOW_ITERS": 80,
+    
+    "//": "=== IO Pin Count (minimal) ===",
+    "//": "SPI Slave: 4 pins (SCLK, MOSI, MISO, CS#)",
+    "//": "I2C Slave: 2 pins (SCL, SDA - open drain)",
+    "//": "GPIO: 8 pins (TRIG_IN, CLASS[3:0], BUSY, ERROR, IRQ#)",
+    "//": "Total: ~14 external interface pins (vs ~100 for VLM)",
+    
+    "//": "=== Signoff ===",
+    "RUN_KLAYOUT_XOR": true,
+    "RUN_MAGIC_DRC": true,
+    "RUN_LVS": true,
+    "QUIT_ON_DRC_ERROR": true,
+    "QUIT_ON_LVS_ERROR": true,
+    "QUIT_ON_TIMING_VIOLATIONS": false,
+    
+    "//": "=== Technology ===",
+    "PDK": "sky130A",
+    "STD_CELL_LIBRARY": "sky130_fd_sc_hd",
+    
+    "//": "=== Antenna protection ===",
+    "DIODE_INSERTION_STRATEGY": 3,
+    
+    "//": "=== Outputs for integration at SoC level ===",
+    "GENERATE_FINAL_SUMMARY_REPORT": true,
+    
+    "VERILOG_DEFINES": [
+        "SYNTHESIS_SKY130",
+        "LEVEL3_SUBSYSTEM",
+        "SILENS_EDGE"
+    ]
+}

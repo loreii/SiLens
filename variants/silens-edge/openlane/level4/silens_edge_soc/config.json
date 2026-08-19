@@ -1,0 +1,91 @@
+{
+    "//": "=============================================================================",
+    "//": "SiLens Edge SoC - Level 4 Top Integration (50mm²)",
+    "//": "=============================================================================",
+    "//": "Die: 50mm² (7mm × 7mm = 49mm²) - compact edge classifier",
+    "//": "Contains: vision_nano + classifier_head + io_edge + on-chip SRAM",
+    "//": "Target: QFN-48 or BGA-100 package",
+    "//": "=============================================================================",
+    
+    "DESIGN_NAME": "silens_edge_soc",
+    "VERILOG_FILES": "dir::src/*.v",
+    
+    "//": "--- Clock Configuration (200MHz) ---",
+    "CLOCK_PORT": "clk_ref",
+    "CLOCK_PERIOD": 5.0,
+    "CLOCK_TREE_SYNTH": true,
+    
+    "//": "--- Die Size (50mm² - 7mm × 7mm) ---",
+    "FP_SIZING": "absolute",
+    "DIE_AREA": "0 0 7000 7000",
+    "CORE_AREA": "50 50 6950 6950",
+    
+    "//": "--- Macro Integration (Level 3 Subsystems) ---",
+    "MACRO_PLACEMENT_CFG": "macro_placement.cfg",
+    "EXTRA_LEFS": [
+        "../level3/vision_nano/runs/run1/results/final/lef/vision_nano.lef",
+        "../level3/classifier_head/runs/run1/results/final/lef/classifier_head.lef",
+        "../level3/io_edge/runs/run1/results/final/lef/io_edge.lef",
+        "../level3/sram_256kb/runs/run1/results/final/lef/sram_256kb.lef"
+    ],
+    "EXTRA_GDS_FILES": [
+        "../level3/vision_nano/runs/run1/results/final/gds/vision_nano.gds",
+        "../level3/classifier_head/runs/run1/results/final/gds/classifier_head.gds",
+        "../level3/io_edge/runs/run1/results/final/gds/io_edge.gds",
+        "../level3/sram_256kb/runs/run1/results/final/gds/sram_256kb.gds"
+    ],
+    
+    "//": "--- Floorplanning ---",
+    "FP_PIN_ORDER_CFG": "pin_order.cfg",
+    "PL_TARGET_DENSITY": 0.65,
+    "PL_MACRO_HALO": "20 20",
+    "PL_MACRO_CHANNEL": "40 40",
+    
+    "//": "--- Power Distribution Network ---",
+    "//": "3W TDP @ 1.8V = ~1.7A - moderate power grid",
+    "FP_PDN_CORE_RING": true,
+    "FP_PDN_CHECK_NODES": true,
+    "VDD_NETS": "VPWR VDD vdd",
+    "GND_NETS": "VGND VSS vss",
+    "FP_PDN_VWIDTH": 2.0,
+    "FP_PDN_HWIDTH": 2.0,
+    "FP_PDN_VPITCH": 60,
+    "FP_PDN_HPITCH": 60,
+    
+    "//": "--- Clock Tree Synthesis ---",
+    "//": "7mm diagonal - tight timing for 200MHz",
+    "CTS_CLK_MAX_WIRE_LENGTH": 800,
+    "CTS_MAX_CAP": 0.3,
+    "CTS_SINK_CLUSTERING_SIZE": 20,
+    "CTS_SINK_CLUSTERING_MAX_DIAMETER": 200,
+    
+    "//": "--- Routing Configuration ---",
+    "RT_MAX_LAYER": "met5",
+    "GLB_RT_ADJUSTMENT": 0.25,
+    "GLB_RT_OVERFLOW_ITERS": 80,
+    "GLB_RT_MAX_DIODE_INS_ITERS": 10,
+    "DRT_OPT_ITERS": 64,
+    
+    "//": "--- DRC and Signoff ---",
+    "RUN_KLAYOUT_XOR": true,
+    "RUN_KLAYOUT_DRC": true,
+    "RUN_MAGIC_DRC": true,
+    "RUN_LVS": true,
+    "LVS_INSERT_POWER_PINS": true,
+    
+    "//": "--- Antenna Mitigation ---",
+    "GRT_ANT_ITERS": 10,
+    "RUN_FILL_INSERTION": true,
+    
+    "//": "--- Reports ---",
+    "GENERATE_FINAL_SUMMARY_REPORT": true,
+    "RUN_CVC": false,
+    
+    "//": "--- Area Breakdown ---",
+    "//": "Vision Nano:     ~15mm² (3900µm × 3850µm) @ (50, 3050)",
+    "//": "Classifier Head: ~10mm² (3150µm × 3170µm) @ (4000, 50)",
+    "//": "SRAM 256KB:      ~10mm² (3150µm × 3170µm) @ (4000, 3300)",
+    "//": "IO Edge:         ~5mm²  (3850µm × 1300µm) @ (50, 50)",
+    "//": "Routing/Glue:    ~10mm² (channels + top logic)",
+    "//": "Total:           ~50mm²"
+}

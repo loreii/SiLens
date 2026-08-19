@@ -1,149 +1,139 @@
 # SiLens Edge - Ultra-Fast Vision Classifier
 
-> **Status:** In Development  
-> **Target:** 50mm² die, <1ms latency, 1000+ FPS
+> 50mm² hardwired AI accelerator for industrial edge deployment
 
-SiLens Edge is a compact, manufacturable variant of the SiLens architecture designed for **edge deployment** and **industrial applications**.
+## Overview
 
----
+SiLens Edge is a compact vision classifier optimized for embedded and industrial applications. It runs inference in under 1ms, classifying images at 1000 FPS with just 500mW active power.
 
-## Key Differences from SiLens VLM
+## Specifications
 
-| Specification | SiLens VLM | SiLens Edge |
-|---------------|------------|-------------|
-| **Die Size** | 800mm² | 50mm² |
-| **Parameters** | 246M | 20M |
-| **Power** | 25W | 3W |
-| **Latency** | <5ms | <1ms |
-| **Throughput** | 200 FPS | 1000+ FPS |
-| **Output** | Text generation | Single token/class |
-| **Package** | BGA-900 | QFN-48 |
-| **Cost** | ~$500 | ~$50 |
+| Parameter | Value |
+|-----------|-------|
+| Die Size | 50mm² (7mm × 7mm) |
+| Process | SkyWater SKY130 130nm |
+| Clock | 200MHz |
+| Power | 3W TDP, <500mW active |
+| Package | QFN-48 |
+| **Model** | TinyVLM-20M |
+| Vision Encoder | NanoViT-12M (6 layers, 192-dim) |
+| Classifier | 7M params (4 layers, 128-dim) |
 
----
+## Performance
 
-## Architecture
+| Metric | Target |
+|--------|--------|
+| Latency | <1ms per image |
+| Throughput | 1000 FPS |
+| Image Size | 224×224 RGB |
+| Classes | 1000 (ImageNet-style) |
+
+## Block Architecture
 
 ```
-┌─────────────────────────────────────────────────┐
-│            SiLens Edge (50mm²)                  │
-│                                                 │
-│  ┌─────────────────┐  ┌─────────────────────┐  │
-│  │  NanoViT        │  │  TinyLLM            │  │
-│  │  Vision Encoder │──│  Classifier Head    │  │
-│  │  (12M params)   │  │  (7M params)        │  │
-│  │  6 layers       │  │  6 layers           │  │
-│  │  192-dim        │  │  128-dim            │  │
-│  └─────────────────┘  └─────────────────────┘  │
-│           │                    │                │
-│           └────────┬───────────┘                │
-│                    ▼                            │
-│           ┌───────────────┐                     │
-│           │ Classification │                    │
-│           │    Output      │                    │
-│           │ (1000 classes) │                    │
-│           └───────────────┘                     │
-│                                                 │
-│  ┌─────────────┐  ┌────────────┐               │
-│  │ SPI/I2C     │  │  GPIO      │               │
-│  │ Interface   │  │  Triggers  │               │
-│  └─────────────┘  └────────────┘               │
-└─────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                     SiLens Edge SoC (50mm²)                     │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │                    7000µm × 7000µm                        │   │
+│  │  ┌─────────────────┐  ┌─────────────────┐                │   │
+│  │  │   Vision Nano   │  │ Classifier Head │                │   │
+│  │  │    (~15mm²)     │  │    (~10mm²)     │                │   │
+│  │  │  NanoViT-12M    │──│   4-layer MLP   │                │   │
+│  │  │  6 transformer  │  │   128-dim       │                │   │
+│  │  │  192-dim        │  │   1000 classes  │                │   │
+│  │  └─────────────────┘  └─────────────────┘                │   │
+│  │                                                          │   │
+│  │  ┌─────────────────┐  ┌─────────────────┐                │   │
+│  │  │   IO Edge       │  │  SRAM 256KB     │                │   │
+│  │  │    (~5mm²)      │  │   (~10mm²)      │                │   │
+│  │  │  SPI Slave      │  │  Dual-port      │                │   │
+│  │  │  I2C Config     │  │  Activation     │                │   │
+│  │  │  8 GPIO         │  │  Buffer         │                │   │
+│  │  └─────────────────┘  └─────────────────┘                │   │
+│  │                                                          │   │
+│  │  ┌─────────────────────────────────────────────────────┐ │   │
+│  │  │            PLL + Reset + Clocks (~10mm²)            │ │   │
+│  │  └─────────────────────────────────────────────────────┘ │   │
+│  └──────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
----
+## Interfaces
+
+### SPI Slave (Primary)
+- 50MHz max clock
+- Mode 0 (CPOL=0, CPHA=0)
+- Commands: Write registers, Read registers, Write image burst, Read result
+
+### I2C Slave (Configuration)
+- Address: 0x50 (configurable)
+- 100/400 kHz support
+- Register map for configuration
+
+### GPIO (8 pins)
+| Pin | Function |
+|-----|----------|
+| 0 | TRIG_IN - External trigger input |
+| 1-4 | CLASS[3:0] - Classification result |
+| 5 | BUSY - Inference in progress |
+| 6 | ERROR - Error indicator |
+| 7 | IRQ_N - Interrupt (active low) |
 
 ## Use Cases
 
-### Industrial Quality Control
-```
-Input:  [Image of gear on assembly line]
-Output: "DEFECT" or "PASS"
-Latency: 0.8ms
-```
-
-### Safety Monitoring
-```
-Input:  [Security camera frame]
-Output: "PERSON_DETECTED" or "CLEAR"
-Latency: 0.5ms
-```
-
-### Drone Navigation
-```
-Input:  [Forward camera view]
-Output: "OBSTACLE" / "CLEAR" / "LANDING_ZONE"
-Latency: 1ms
-```
-
-### Robotics
-```
-Input:  [Gripper camera view]
-Output: "OBJECT_PRESENT" / "ALIGNED" / "MISALIGNED"
-Latency: 0.3ms
-```
-
----
-
-## Why This Matters
-
-The full SiLens VLM (800mm²) is a **moonshot** - technically challenging and expensive to manufacture. SiLens Edge:
-
-1. **Validates the hardwired approach** at smaller scale
-2. **Ships first** - proving the team can deliver
-3. **Lower Kickstarter goal** - $50K vs $500K
-4. **Real market demand** - industrial edge AI is a $10B+ market
-5. **Learning opportunity** - OpenLane, tape-out, PCB at manageable scale
-
----
-
-## Development Status
-
-| Component | Status |
-|-----------|--------|
-| Architecture spec | 🟡 In progress |
-| Level 1-2 primitives | ✅ Shared with VLM |
-| Level 3 subsystems | 🔴 Not started |
-| Level 4 top integration | 🔴 Not started |
-| Model selection | 🟡 Evaluating options |
-| OpenLane synthesis | 🔴 Not started |
-| FPGA prototype | 🔴 Not started |
-
----
+- Industrial defect detection
+- Object presence detection (yes/no)
+- Safety triggers (person detected)
+- Quality control classification
+- Drone obstacle detection
+- Robotics scene classification
 
 ## Building
 
 ```bash
-# From SiLens root
+# Build shared Level 1-2 primitives (required once)
+cd openlane
+make level1 level2
+
+# Build Edge-specific Level 3-4
 make VARIANT=silens-edge level3
 make VARIANT=silens-edge level4
+
+# Or build everything
 make VARIANT=silens-edge all
 ```
 
----
-
-## File Structure
+## Directory Structure
 
 ```
 variants/silens-edge/
-├── config.json          # Variant configuration
-├── README.md            # This file
+├── config.json             # Variant configuration
+├── README.md               # This file
+├── docs/                   # Edge-specific documentation
 ├── openlane/
-│   ├── level3/          # Edge-specific subsystems
-│   └── level4/          # Edge top integration
-├── rtl/
-│   └── silens_edge_soc.v
-└── docs/
-    └── kickstarter/     # Edge-specific campaign
+│   ├── level3/
+│   │   ├── vision_nano/    # NanoViT encoder (~15mm²)
+│   │   ├── classifier_head/ # MLP classifier (~10mm²)
+│   │   ├── io_edge/        # SPI/I2C/GPIO (~5mm²)
+│   │   └── sram_256kb/     # Activation SRAM (~10mm²)
+│   └── level4/
+│       └── silens_edge_soc/ # Top integration (50mm²)
+└── rtl/                    # Variant-specific RTL (if any)
 ```
 
----
+## Comparison with SiLens VLM
 
-## Contributing
+| Feature | SiLens Edge | SiLens VLM |
+|---------|-------------|------------|
+| Die Size | 50mm² | 800mm² |
+| Model | TinyVLM-20M | PaliGemma-3B |
+| Output | Single class (1000) | Text generation |
+| Memory | On-chip only | DDR3 external |
+| Interface | SPI/I2C/GPIO | PCIe/Parallel |
+| Package | QFN-48 | BGA-900 |
+| Power | 3W TDP | 25W TDP |
+| Use Case | Embedded classification | Full VLM inference |
 
-See the main [CONTRIBUTING.md](../../CONTRIBUTING.md). Focus areas for Edge:
+## License
 
-1. Small vision encoder evaluation (MobileViT, EfficientViT, etc.)
-2. Tiny LLM classifier design
-3. QFN/BGA package pinout
-4. Low-power design techniques
+Apache 2.0 - See [LICENSE](../../LICENSE)

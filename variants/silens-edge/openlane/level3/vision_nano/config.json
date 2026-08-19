@@ -1,0 +1,151 @@
+{
+    "//": "=======================================================================",
+    "//": "NanoViT Vision Encoder - Level 3 Hierarchical Synthesis Block",
+    "//": "=======================================================================",
+    "//": "Compact vision encoder for SiLens Edge ultra-fast classifier.",
+    "//": "Optimized MobileViT-XXS style architecture for 50mm² die budget.",
+    "//": "",
+    "//": "Architecture:",
+    "//": "  Input Image (224×224×3)",
+    "//": "    → Patch Embedding (16×16 patches = 196 + 1 CLS = 197 tokens)",
+    "//": "    → 6× transformer_layer (sequential processing, shared compute)",
+    "//": "    → Final Layer Norm",
+    "//": "    → CLS token output (192-dim) → to projector",
+    "//": "",
+    "//": "Parameters:",
+    "//": "  - Hidden dim: 192",
+    "//": "  - Heads: 3 (head_dim = 64)",
+    "//": "  - MLP expansion: 2x (192 → 384 → 192)",
+    "//": "  - Layers: 6",
+    "//": "  - Patches: 196 (14×14 from 224÷16)",
+    "//": "",
+    "//": "Target: ~15mm² on SKY130 (3900µm × 3900µm)",
+    "//": "Clock: 200MHz (5ns period) for 1ms latency target",
+    "//": "",
+    "//": "Reuses Level 1 primitives as black boxes:",
+    "//": "  - attention_head_nano (64-dim head, scaled for 200MHz)",
+    "//": "  - mlp_block_nano (192→384→192)",
+    "//": "  - layer_norm_nano (192-dim)",
+    
+    "DESIGN_NAME": "vision_nano",
+    
+    "VERILOG_FILES": [
+        "dir::src/vision_nano.v"
+    ],
+    
+    "//": "=== Clock ===",
+    "CLOCK_PORT": "clk",
+    "CLOCK_PERIOD": 5.0,
+    "//": "5ns = 200 MHz target frequency for edge variant",
+    
+    "//": "=== Die Area ===",
+    "//": "Target: ~15mm² = 3900µm × 3900µm",
+    "FP_SIZING": "absolute",
+    "DIE_AREA": "0 0 3900 3900",
+    "CORE_AREA": "50 50 3850 3850",
+    
+    "//": "=== This is a MACRO block (Level 3) ===",
+    "DESIGN_IS_CORE": false,
+    
+    "//": "=== Level 1/2 Macro References (Black Boxes) ===",
+    "//": "These primitives are referenced for hierarchical synthesis.",
+    "//": "Actual LEF/GDS will be provided from shared openlane/level1-2 builds.",
+    "MACROS": {
+        "attention_head_nano": {
+            "//": "3 heads per layer × 6 layers = 18 total, but we time-multiplex",
+            "//": "Single shared attention head, reused across heads and layers",
+            "gds": ["dir::../../../openlane/level1/attention_head_nano/runs/latest/results/final/gds/attention_head_nano.gds"],
+            "lef": ["dir::../../../openlane/level1/attention_head_nano/runs/latest/results/final/lef/attention_head_nano.lef"],
+            "instances": {
+                "u_attn_head_0": {"location": [100, 100], "orientation": "N"},
+                "u_attn_head_1": {"location": [800, 100], "orientation": "N"},
+                "u_attn_head_2": {"location": [1500, 100], "orientation": "N"}
+            }
+        },
+        "mlp_block_nano": {
+            "//": "Single MLP block, time-shared across all 6 layers",
+            "gds": ["dir::../../../openlane/level1/mlp_block_nano/runs/latest/results/final/gds/mlp_block_nano.gds"],
+            "lef": ["dir::../../../openlane/level1/mlp_block_nano/runs/latest/results/final/lef/mlp_block_nano.lef"],
+            "instances": {
+                "u_mlp": {"location": [100, 1000], "orientation": "N"}
+            }
+        },
+        "layer_norm_nano": {
+            "//": "2× per layer = 12 total, but we use 2 shared and time-multiplex",
+            "gds": ["dir::../../../openlane/level1/layer_norm_nano/runs/latest/results/final/gds/layer_norm_nano.gds"],
+            "lef": ["dir::../../../openlane/level1/layer_norm_nano/runs/latest/results/final/lef/layer_norm_nano.lef"],
+            "instances": {
+                "u_ln_pre_attn": {"location": [2200, 100], "orientation": "N"},
+                "u_ln_pre_mlp": {"location": [2200, 600], "orientation": "N"},
+                "u_ln_final": {"location": [2200, 1100], "orientation": "N"}
+            }
+        }
+    },
+    
+    "//": "=== Placement ===",
+    "PL_TARGET_DENSITY": 0.50,
+    "PL_ROUTABILITY_DRIVEN": true,
+    "PL_TIME_DRIVEN": true,
+    "PL_MACRO_HALO": "30 30",
+    "PL_MACRO_CHANNEL": "60 60",
+    "//": "Tighter spacing for compact design",
+    
+    "//": "=== Synthesis ===",
+    "SYNTH_STRATEGY": "AREA 3",
+    "SYNTH_MAX_FANOUT": 6,
+    "SYNTH_BUFFERING": true,
+    "SYNTH_HIERARCHICAL": true,
+    "//": "Maximum area optimization for edge device",
+    
+    "//": "=== CTS ===",
+    "CTS_TARGET_SKEW": 150,
+    "CTS_SINK_CLUSTERING_SIZE": 40,
+    "CTS_CLK_BUFFER_LIST": "sky130_fd_sc_hd__clkbuf_16 sky130_fd_sc_hd__clkbuf_8 sky130_fd_sc_hd__clkbuf_4",
+    "//": "Aggressive CTS for 200MHz target",
+    
+    "//": "=== Routing ===",
+    "GRT_ADJUSTMENT": 0.20,
+    "GRT_OVERFLOW_ITERS": 150,
+    "DRT_OPT_ITERS": 80,
+    "//": "Dense routing for compact design",
+    
+    "//": "=== Power Distribution Network ===",
+    "FP_PDN_VOFFSET": 5,
+    "FP_PDN_HOFFSET": 5,
+    "FP_PDN_VPITCH": 80,
+    "FP_PDN_HPITCH": 80,
+    "//": "Denser PDN for higher frequency operation",
+    
+    "//": "=== Signoff ===",
+    "RUN_KLAYOUT_XOR": true,
+    "RUN_MAGIC_DRC": true,
+    "RUN_LVS": true,
+    "QUIT_ON_DRC_ERROR": true,
+    "QUIT_ON_LVS_ERROR": true,
+    "QUIT_ON_TIMING_VIOLATIONS": false,
+    "//": "Allow timing violations initially, iterate to close timing",
+    
+    "//": "=== Technology ===",
+    "PDK": "sky130A",
+    "STD_CELL_LIBRARY": "sky130_fd_sc_hd",
+    
+    "//": "=== Antenna protection ===",
+    "DIODE_INSERTION_STRATEGY": 3,
+    "//": "Preventive diode insertion for 200MHz operation",
+    
+    "//": "=== Memory Configuration ===",
+    "//": "Patch embedding weights: 3×16×16×192 = 147,456 ternary weights (~23KB)",
+    "//": "Position embeddings: 197×192 = 37,824 values (~5KB @ 8-bit)",
+    "//": "CLS token: 192 values",
+    "//": "Total on-chip weight storage: hardwired in RTL",
+    
+    "//": "=== Outputs for Level 4 (SoC) integration ===",
+    "GENERATE_FINAL_SUMMARY_REPORT": true,
+    
+    "VERILOG_DEFINES": [
+        "SYNTHESIS_SKY130",
+        "LEVEL3_SUBSYSTEM",
+        "VISION_ENCODER_NANO",
+        "CLOCK_200MHZ"
+    ]
+}
