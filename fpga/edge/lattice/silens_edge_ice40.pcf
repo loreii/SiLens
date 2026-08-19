@@ -1,0 +1,164 @@
+# =============================================================================
+# SiLens Edge Pin Constraint File - Lattice iCE40 UP5K (UPduino v3.1)
+# =============================================================================
+# Target: UPduino v3.1 (Lattice iCE40UP5K-SG48ITR)
+# Toolchain: Open-source (Yosys + nextpnr-ice40 + icestorm)
+#
+# iCE40 UP5K Resources:
+#   - 5,280 LUTs (4-input)
+#   - 1,024 FFs
+#   - 128 Kbit SPRAM (4× 32Kb blocks)
+#   - 120 Kbit BRAM (30× 4Kb blocks)
+#   - 8 DSPs (16×16 multiply)
+#   - PLL, 48MHz HFOSC, 10kHz LFOSC
+#
+# IMPORTANT: iCE40 UP5K is severely resource-constrained for SiLens.
+# Use REDUCED model configuration (see wrapper comments).
+#
+# UPduino v3.1 pinout reference:
+#   https://tinyvision.ai/products/upduino-v3-1
+#
+# License: Apache 2.0
+# =============================================================================
+
+# =============================================================================
+# Clock Input (optional external clock)
+# =============================================================================
+# The UP5K has internal 48MHz HFOSC, so external clock is optional.
+# If using external clock, connect to GPIO_20 (directly routed to GBIN)
+# Uncomment if using external oscillator instead of HFOSC:
+# set_io clk_ext         20      # GPIO_20 (global buffer input)
+
+# =============================================================================
+# SPI Slave Interface (directly to Pmod-compatible header)
+# =============================================================================
+# Primary communication interface to MCU host (ESP32, STM32, Raspberry Pi Pico)
+# Using GPIO pins accessible on UPduino headers (directly exposed for easy wiring)
+#
+# SPI Mode 0: CPOL=0, CPHA=0
+# Max frequency: ~12MHz (conservative for 48MHz system clock)
+
+set_io spi_clk          43      # GPIO_43 (directly accessible on header)
+set_io spi_mosi         34      # GPIO_34 (directly accessible)
+set_io spi_miso         36      # GPIO_36 (directly accessible)
+set_io spi_cs_n         42      # GPIO_42 (directly accessible)
+
+# =============================================================================
+# I2C Interface (configuration and secondary data)
+# =============================================================================
+# I2C slave for configuration registers and status readback
+# Address: 0x50 (configurable in RTL)
+#
+# Note: I2C requires external pull-ups (4.7kΩ to 3.3V)
+
+set_io i2c_scl          31      # GPIO_31 (directly accessible)
+set_io i2c_sda          32      # GPIO_32 (directly accessible, bidirectional)
+
+# =============================================================================
+# GPIO[7:0] - General Purpose I/O
+# =============================================================================
+# 8-bit bidirectional GPIO for:
+#   - gpio[0]: Inference trigger input (directly from external signal)
+#   - gpio[1]: Busy status output
+#   - gpio[2]: Done/valid output
+#   - gpio[3]: Error indicator output
+#   - gpio[7:4]: User-defined (directly available)
+
+set_io gpio[0]          28      # GPIO_28 - Trigger input
+set_io gpio[1]          38      # GPIO_38 - Busy output
+set_io gpio[2]          2       # GPIO_2  - Done output
+set_io gpio[3]          46      # GPIO_46 - Error output
+set_io gpio[4]          47      # GPIO_47 - User GPIO
+set_io gpio[5]          44      # GPIO_44 - User GPIO
+set_io gpio[6]          4       # GPIO_4  - User GPIO
+set_io gpio[7]          3       # GPIO_3  - User GPIO
+
+# =============================================================================
+# RGB LED (onboard UPduino RGB LED using SB_RGBA_DRV)
+# =============================================================================
+# iCE40 UP5K has dedicated RGB LED driver primitive
+# directly connected to internal LED driver (no pin assignment needed for RGB)
+# The SB_RGBA_DRV primitive outputs directly drive the LED pins:
+#   - RGB0: Red
+#   - RGB1: Green  
+#   - RGB2: Blue
+#
+# These are directly routed inside the FPGA - declare for documentation only.
+# The actual pins (39, 40, 41) are directly tied to the LED driver.
+
+set_io led_r            41      # RGB0 - Red (directly to onboard LED)
+set_io led_g            40      # RGB1 - Green (directly to onboard LED)
+set_io led_b            39      # RGB2 - Blue (directly to onboard LED)
+
+# =============================================================================
+# UART Debug Interface (directly to USB-Serial via FT232)
+# =============================================================================
+# UPduino v3.1 has onboard FT232 USB-UART bridge
+# directly usable for debug output without external wiring
+
+set_io uart_tx          21      # TX to FT232 (FPGA transmits to PC)
+set_io uart_rx          19      # RX from FT232 (FPGA receives from PC)
+
+# =============================================================================
+# Reset (directly from button if available, optional)
+# =============================================================================
+# UPduino v3.1 has a reset button directly connected
+# If not using external reset, the wrapper generates internal POR
+
+set_io rst_n            10      # External reset button (active low)
+
+# =============================================================================
+# Classification Output (directly exposed for probing/debug)
+# =============================================================================
+# These outputs allow direct monitoring of inference results
+# without SPI polling (useful for logic analyzer debugging)
+
+set_io class_valid      6       # Classification result valid pulse
+set_io inference_busy   9       # Inference in progress
+
+# class_id directly exposed for easy probing (directly readable)
+# Note: Only exposing 4 bits due to limited pins (full 10-bit via SPI)
+set_io class_id[0]      11      # Class ID bit 0
+set_io class_id[1]      12      # Class ID bit 1
+set_io class_id[2]      13      # Class ID bit 2
+set_io class_id[3]      18      # Class ID bit 3
+
+# =============================================================================
+# IO Constraints and Attributes
+# =============================================================================
+# iCE40 UP5K default IO voltage is 3.3V LVCMOS
+# All IOs are 3.3V compatible with standard MCU logic levels
+
+# Note: nextpnr-ice40 doesn't support all XDC-style attributes
+# IO standard is fixed at LVCMOS33 for SG48 package
+
+# =============================================================================
+# Resource Usage Notes for SiLens Edge on iCE40 UP5K
+# =============================================================================
+#
+# The iCE40 UP5K has SEVERE resource constraints compared to Artix-7:
+#
+#   Resource    | UP5K Avail | Full SiLens | Reduced Config
+#   ------------|------------|-------------|----------------
+#   LUTs        | 5,280      | ~20,000     | ~4,000 (MICRO)
+#   FFs         | 5,280      | ~15,000     | ~3,500 (MICRO)
+#   BRAM (Kb)   | 120        | ~320        | ~80 (MICRO)
+#   DSP         | 8          | ~30         | 4 (MICRO)
+#
+# REDUCED "MICRO" Configuration for iCE40 UP5K:
+#   - HIDDEN_DIM = 32 (vs 192)
+#   - NUM_PATCHES = 16 (4×4 vs 14×14, from 64×64 input)
+#   - NUM_CLASSES = 16 (vs 1000)
+#   - NUM_LAYERS = 1 (vs 6)
+#   - Single attention head
+#   - No classifier head MLP (directly from vision to softmax)
+#
+# This "MICRO" config demonstrates the architecture but with:
+#   - 64×64 grayscale input (vs 224×224 RGB)
+#   - 16-class output (basic object detection)
+#   - ~100ms inference (vs 1ms target)
+#
+# For production edge deployment, use ECP5 or Artix-7.
+# iCE40 is ideal for: prototyping, education, proof-of-concept.
+#
+# =============================================================================
