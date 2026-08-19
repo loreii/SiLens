@@ -1,0 +1,99 @@
+{
+    "variant_name": "silens-edge",
+    "variant_description": "Ultra-Fast Edge Vision Classifier",
+    "version": "1.0.0",
+    
+    "//": "=== Target Specifications ===",
+    "target": {
+        "die_size_mm2": 50,
+        "die_dimensions": "7mm × 7mm",
+        "process": "SkyWater SKY130 130nm",
+        "clock_mhz": 200,
+        "power_tdp_w": 3
+    },
+    
+    "//": "=== Model Configuration ===",
+    "model": {
+        "name": "TinyVLM-20M",
+        "total_params": 20000000,
+        "quantization": "ternary",
+        "bits_per_weight": 1.58
+    },
+    
+    "//": "=== Vision Encoder (MobileViT-XXS style) ===",
+    "vision": {
+        "name": "NanoViT",
+        "params": 12000000,
+        "hidden_dim": 192,
+        "layers": 6,
+        "heads": 3,
+        "mlp_dim": 384,
+        "image_size": 224,
+        "patch_size": 16,
+        "num_patches": 196
+    },
+    
+    "//": "=== Projector ===",
+    "projector": {
+        "params": 1000000,
+        "input_dim": 192,
+        "hidden_dim": 256,
+        "output_dim": 128
+    },
+    
+    "//": "=== Language Model (TinyLLM-7M) ===",
+    "llm": {
+        "name": "TinyLLM-7M",
+        "params": 7000000,
+        "hidden_dim": 128,
+        "layers": 6,
+        "heads": 4,
+        "kv_heads": 4,
+        "mlp_dim": 256,
+        "vocab_size": 1000,
+        "max_seq_len": 32,
+        "//": "Limited vocab - outputs classification tokens only"
+    },
+    
+    "//": "=== Memory Architecture ===",
+    "memory": {
+        "weights_storage": "hardwired",
+        "weights_size_mb": 5,
+        "kv_cache": "on_chip_sram",
+        "kv_cache_size_kb": 64,
+        "activation_sram_kb": 256
+    },
+    
+    "//": "=== Output Mode ===",
+    "output": {
+        "mode": "classification",
+        "max_output_tokens": 1,
+        "//": "Single token output: class label or trigger signal"
+    },
+    
+    "//": "=== Use Cases ===",
+    "use_cases": [
+        "Industrial defect detection",
+        "Object presence detection (yes/no)",
+        "Safety trigger (person detected)",
+        "Quality control classification",
+        "Drone obstacle detection",
+        "Robotics scene classification"
+    ],
+    
+    "//": "=== Target Applications ===",
+    "applications": {
+        "latency_target_ms": 1,
+        "throughput_fps": 1000,
+        "power_mw": 500,
+        "package": "QFN-48 or BGA-100"
+    },
+    
+    "//": "=== Build Paths (relative to variant dir) ===",
+    "paths": {
+        "level3": "openlane/level3",
+        "level4": "openlane/level4",
+        "top_rtl": "rtl/silens_edge_soc.v",
+        "docs": "docs"
+    }
+}

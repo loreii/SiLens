@@ -30,48 +30,73 @@ This eliminates the memory bottleneck that limits traditional AI accelerators, e
 | PCB design | 🔴 Not started |
 | Software/drivers | 🟡 SDK in progress |
 
+## Hardware Variants
+
+SiLens supports multiple hardware variants built from shared compute primitives:
+
+| Variant | Die Size | Model | Use Case | Status |
+|---------|----------|-------|----------|--------|
+| **[silens-vlm](variants/silens-vlm/)** | 800mm² | SmolVLM-256M | Conversational Vision AI | RTL Complete |
+| **[silens-edge](variants/silens-edge/)** | 50mm² | TinyVLM-20M | Edge Classification | In Development |
+
+### Build Strategy
+
+```
+Shared (Level 1-2)              Variant-Specific (Level 3-4)
+┌─────────────────────┐         ┌─────────────────────────────┐
+│ MAC arrays          │         │ silens-vlm (800mm²)         │
+│ Normalization       │ ──────► │   Vision + LLM subsystems   │
+│ Attention heads     │         │   Full text generation      │
+│ MLP blocks          │         ├─────────────────────────────┤
+│ Transformer blocks  │         │ silens-edge (50mm²)         │
+└─────────────────────┘         │   Compact classifier        │
+                                │   Single-token output       │
+                                └─────────────────────────────┘
+```
+
+**Why two variants?**
+- **silens-edge ships first** — De-risks manufacturing at smaller scale
+- **Validates hardwired approach** — Proves concept before 800mm² investment
+- **Different markets** — VLM for consumer AI, Edge for industrial IoT
+
+See [variants/README.md](variants/README.md) for details.
+
 ## Repository Structure
 
 ```
 SiLens/
 ├── README.md                 # This file
 ├── LICENSE                   # Apache 2.0
-├── docs/                     # Documentation
-│   ├── architecture/         # System architecture
-│   ├── business/            # Business plan documents
-│   └── kickstarter/         # Crowdfunding materials
-├── rtl/                     # Verilog/SystemVerilog source
-│   ├── vision_encoder/      # SigLIP-B/16 implementation
-│   ├── language_model/      # SmolLM2-135M implementation
-│   ├── projector/           # Multimodal projector
-│   ├── top/                 # Top-level integration
-│   └── tb/                  # Testbenches
-├── model/                   # Model files and conversion tools
-│   ├── weights/             # Quantized weights (gitignored)
-│   ├── conversion/          # PyTorch → Verilog tools
-│   │   ├── quantize_ternary.py    # Ternary quantization with gradient optimization
-│   │   ├── calibration.py         # Calibration-aware quantization
-│   │   ├── mixed_precision.py     # Mixed-precision quantization
-│   │   └── sensitivity_analysis.py # Layer sensitivity analysis
-│   ├── validation/          # Model accuracy validation
-│   │   ├── benchmark_suite.py     # VQA/TextVQA benchmarks
-│   │   ├── perplexity_test.py     # Language model perplexity
-│   │   ├── visual_qa_test.py      # Visual QA accuracy
-│   │   └── compare_outputs.py     # Original vs quantized comparison
-│   ├── analysis/            # Weight analysis tools
-│   │   ├── weight_visualizer.py   # Distribution visualization
-│   │   ├── sparsity_analyzer.py   # Sparsity pattern analysis
-│   │   └── outlier_detector.py    # Outlier detection
-│   ├── reports/             # Sample reports and templates
-│   └── QUANTIZATION_GUIDE.md # Comprehensive quantization guide
-├── pdk/                     # SkyWater PDK setup
-├── synthesis/               # OpenLane synthesis scripts
-├── pcb/                     # PCB design files
-├── firmware/                # Card firmware
-├── drivers/                 # Linux kernel driver
-├── sdk/                     # Python SDK
-├── fpga/                    # FPGA prototype files
-└── tools/                   # Utility scripts
+├── variants/                 # Hardware variants
+│   ├── README.md             # Variants overview
+│   ├── silens-vlm/           # 800mm² Vision-Language Model
+│   │   ├── config.json       # Variant configuration
+│   │   ├── openlane/level3/  # VLM subsystems
+│   │   ├── openlane/level4/  # VLM top integration
+│   │   └── docs/kickstarter/ # VLM campaign materials
+│   └── silens-edge/          # 50mm² Edge Classifier
+│       ├── config.json       # Variant configuration
+│       ├── openlane/level3/  # Edge subsystems (TBD)
+│       ├── openlane/level4/  # Edge top integration (TBD)
+│       └── docs/             # Edge documentation
+├── openlane/                 # Shared synthesis configs
+│   ├── Makefile              # Multi-variant build system
+│   ├── level1/               # Shared compute primitives
+│   └── level2/               # Shared functional blocks
+├── docs/                     # Shared documentation
+│   └── architecture/         # System architecture
+├── rtl/                      # Verilog/SystemVerilog source
+│   ├── common/               # Shared primitives
+│   ├── vision_encoder/       # Vision encoder RTL
+│   ├── language_model/       # LLM RTL
+│   ├── projector/            # Projector RTL
+│   └── tb/                   # Testbenches
+├── model/                    # Model conversion tools
+├── sdk/                      # Python SDK
+├── drivers/                  # Linux kernel driver
+├── firmware/                 # Card firmware
+├── fpga/                     # FPGA prototype files
+└── tools/                    # Utility scripts
 ```
 
 ## Dependencies

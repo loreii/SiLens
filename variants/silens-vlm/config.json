@@ -1,0 +1,81 @@
+{
+    "variant_name": "silens-vlm",
+    "variant_description": "Full Vision-Language Model Accelerator",
+    "version": "1.0.0",
+    
+    "//": "=== Target Specifications ===",
+    "target": {
+        "die_size_mm2": 800,
+        "die_dimensions": "26mm × 30.77mm",
+        "process": "SkyWater SKY130 130nm",
+        "clock_mhz": 100,
+        "power_tdp_w": 25
+    },
+    
+    "//": "=== Model Configuration ===",
+    "model": {
+        "name": "SmolVLM-256M",
+        "total_params": 246000000,
+        "quantization": "ternary",
+        "bits_per_weight": 1.58
+    },
+    
+    "//": "=== Vision Encoder (SigLIP-B/16) ===",
+    "vision": {
+        "name": "SigLIP-B/16",
+        "params": 93000000,
+        "hidden_dim": 768,
+        "layers": 12,
+        "heads": 12,
+        "mlp_dim": 3072,
+        "image_size": 384,
+        "patch_size": 16,
+        "num_patches": 576
+    },
+    
+    "//": "=== Projector ===",
+    "projector": {
+        "params": 18000000,
+        "input_dim": 768,
+        "hidden_dim": 1152,
+        "output_dim": 576
+    },
+    
+    "//": "=== Language Model (SmolLM2-135M) ===",
+    "llm": {
+        "name": "SmolLM2-135M",
+        "params": 135000000,
+        "hidden_dim": 576,
+        "layers": 30,
+        "heads": 9,
+        "kv_heads": 9,
+        "mlp_dim": 1536,
+        "vocab_size": 49152,
+        "max_seq_len": 2048
+    },
+    
+    "//": "=== Memory Architecture ===",
+    "memory": {
+        "weights_storage": "hardwired",
+        "weights_size_mb": 61.5,
+        "kv_cache": "external_ddr3",
+        "kv_cache_size_mb": 256,
+        "activation_sram_mb": 16
+    },
+    
+    "//": "=== Use Cases ===",
+    "use_cases": [
+        "Image captioning",
+        "Visual question answering",
+        "Scene description",
+        "Multi-turn visual dialogue"
+    ],
+    
+    "//": "=== Build Paths (relative to variant dir) ===",
+    "paths": {
+        "level3": "openlane/level3",
+        "level4": "openlane/level4",
+        "top_rtl": "rtl/silens_soc.v",
+        "docs": "docs"
+    }
+}
