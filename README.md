@@ -459,6 +459,19 @@ This project is licensed under the Apache License 2.0 — see [LICENSE](LICENSE)
 | SkyWater SKY130 | Apache 2.0 | Google/SkyWater |
 | OpenLane | Apache 2.0 | Efabless |
 
+## Related Projects
+
+### Engram SSD Accelerator
+
+For running larger models like **Qwen3.8-Flash-Next** (125B MoE + 51.2B Engram table) on consumer hardware, we're developing the [Engram SSD Accelerator](https://github.com/loreii/engram-ssd-accelerator) — a companion project that keeps the massive N-gram embedding table on NVMe SSD with hardware-accelerated access.
+
+**Combined architecture for Qwen3.8-Flash-Next:**
+- **Engram SSD Accelerator**: 51.2B N-gram table on SSD with DMA access (102GB → 4GB DRAM)
+- **SiLens Ternary Quantization**: 125B MoE backbone quantized to {-1, 0, +1} (250GB → 31GB)
+- **Total DRAM requirement**: <45GB instead of 350GB+
+
+This enables running frontier-class models on prosumer hardware (RTX 4090 + 64GB RAM + NVMe array).
+
 ## Acknowledgments
 
 - **Hugging Face** for SmolVLM and the open model ecosystem
