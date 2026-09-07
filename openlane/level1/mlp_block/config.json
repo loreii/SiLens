@@ -14,7 +14,7 @@
     
     "//": "=== Clock ===",
     "CLOCK_PORT": "clk",
-    "CLOCK_PERIOD": 10.0,
+    "CLOCK_PERIOD": 14.0,
     "//": "10ns = 100 MHz target frequency",
     
     "//": "=== Die Area ===",

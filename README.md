@@ -25,10 +25,23 @@ This eliminates the memory bottleneck that limits traditional AI accelerators, e
 | Architecture specification | 🟡 In progress |
 | RTL design (Verilog) | 🟢 Core modules complete |
 | RTL simulation | 🟢 E2E pipeline verified |
+| **OpenLane synthesis** | 🟢 **5 blocks DRC/LVS clean** |
 | FPGA prototype | 🔴 Not started |
-| Physical design | 🔴 Not started |
+| Physical design | 🟡 In progress |
 | PCB design | 🔴 Not started |
 | Software/drivers | 🟡 SDK in progress |
+
+### Synthesis Progress (SkyWater SKY130)
+
+| Block | Variant | Area | Clock | Status |
+|-------|---------|------|-------|--------|
+| ternary_mac_array_64 | VLM | 1.0mm² | 71MHz | ✅ DRC/LVS clean |
+| softmax_unit | VLM | 0.49mm² | 36MHz | ✅ DRC/LVS clean |
+| silu_unit | VLM | 0.30mm² | 71MHz | ✅ DRC/LVS clean |
+| attention_head_small | VLM | 1.0mm² | 37MHz | ✅ DRC/LVS clean |
+| **layer_norm_edge** | **Edge** | **1.71mm²** | **45MHz** | ✅ **DRC/LVS clean** |
+
+See [openlane/SYNTHESIS_RESULTS.md](openlane/SYNTHESIS_RESULTS.md) for detailed results.
 
 ## Hardware Variants
 

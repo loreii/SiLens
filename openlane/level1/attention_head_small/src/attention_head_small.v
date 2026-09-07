@@ -1,8 +1,14 @@
 // =============================================================================
-// Attention Head Block - Level 1 Synthesis Block
+// Attention Head Block (SMALL) - Level 1 Synthesis Block - Test Variant
 // =============================================================================
-// Single attention head computation for transformer models.
+// Reduced-size attention head for faster synthesis iteration.
 // Computes: Attention(Q,K,V) = softmax(Q·K^T / sqrt(d)) · V
+//
+// SMALL VARIANT CHANGES:
+// - HEAD_DIM reduced from 64 to 16
+// - MAX_SEQ reduced from 64 to 16
+// - Estimated IO pins: ~600-800 (down from ~2464)
+// - Target area: ~0.5mm² vs ~2mm²
 //
 // Features:
 // - Ternary weight projections for Q, K, V (no multipliers needed)
@@ -10,8 +16,7 @@
 // - Streaming Q input, cached K/V from external memory
 // - Approximate softmax using piece-wise linear function
 //
-// Target: ~2mm² on SKY130 (1400µm × 1400µm)
-// Reuse: 414× total (144 in vision encoder, 270 in LLM)
+// Target: ~0.64mm² on SKY130 (800µm × 800µm)
 //
 // License: Apache 2.0
 // =============================================================================
@@ -19,9 +24,9 @@
 `timescale 1ns / 1ps
 `default_nettype none
 
-module attention_head #(
-    parameter HEAD_DIM   = 64,       // Dimension per head (d_k = d_v)
-    parameter MAX_SEQ    = 64,       // Maximum sequence length for KV cache (reduced for synthesis)
+module attention_head_small #(
+    parameter HEAD_DIM   = 16,       // Dimension per head (reduced from 64)
+    parameter MAX_SEQ    = 16,       // Maximum sequence length for KV cache (reduced from 64)
     parameter ACT_WIDTH  = 8,        // Activation bit width
     parameter ACC_WIDTH  = 24,       // Accumulator width for dot products
     parameter SCORE_WIDTH = 16       // Attention score width
@@ -43,23 +48,23 @@ module attention_head #(
     // Input: Query vector (already projected, or raw activation)
     // =========================================================================
     input  wire                         q_valid,
-    input  wire [HEAD_DIM*ACT_WIDTH-1:0] q_data,        // Query vector
+    input  wire [HEAD_DIM*ACT_WIDTH-1:0] q_data,        // Query vector (128 bits)
     output wire                         q_ready,
     
     // =========================================================================
     // Ternary weight interface for Q/K/V projections (optional)
     // =========================================================================
     input  wire                         use_projection, // Enable internal projection
-    input  wire [HEAD_DIM*2-1:0]        w_q,           // Ternary Q weights
-    input  wire [HEAD_DIM*2-1:0]        w_k,           // Ternary K weights  
-    input  wire [HEAD_DIM*2-1:0]        w_v,           // Ternary V weights
+    input  wire [HEAD_DIM*2-1:0]        w_q,           // Ternary Q weights (32 bits)
+    input  wire [HEAD_DIM*2-1:0]        w_k,           // Ternary K weights (32 bits)
+    input  wire [HEAD_DIM*2-1:0]        w_v,           // Ternary V weights (32 bits)
     
     // =========================================================================
     // KV Cache memory interface (external SRAM)
     // =========================================================================
-    output reg  [$clog2(MAX_SEQ)-1:0]   kv_addr,       // Address in KV cache
-    input  wire [HEAD_DIM*ACT_WIDTH-1:0] kv_rdata,     // Read data (K or V)
-    output reg  [HEAD_DIM*ACT_WIDTH-1:0] kv_wdata,     // Write data
+    output reg  [$clog2(MAX_SEQ)-1:0]   kv_addr,       // Address in KV cache (4 bits)
+    input  wire [HEAD_DIM*ACT_WIDTH-1:0] kv_rdata,     // Read data (K or V) (128 bits)
+    output reg  [HEAD_DIM*ACT_WIDTH-1:0] kv_wdata,     // Write data (128 bits)
     output reg                          kv_rd,          // Read enable
     output reg                          kv_wr,          // Write enable
     output reg                          kv_sel,         // 0=K cache, 1=V cache
@@ -68,17 +73,17 @@ module attention_head #(
     // Output: Attention output vector
     // =========================================================================
     output reg                          out_valid,
-    output reg  [HEAD_DIM*ACT_WIDTH-1:0] out_data,     // Attention output
+    output reg  [HEAD_DIM*ACT_WIDTH-1:0] out_data,     // Attention output (128 bits)
     input  wire                         out_ready
 );
 
     // =========================================================================
     // Local parameters
     // =========================================================================
-    localparam SEQ_BITS = $clog2(MAX_SEQ);
+    localparam SEQ_BITS = $clog2(MAX_SEQ);  // 4 bits for MAX_SEQ=16
     
-    // Scale factor: 1/sqrt(HEAD_DIM) = 1/8 for HEAD_DIM=64
-    localparam SCALE_SHIFT = 3;
+    // Scale factor: 1/sqrt(HEAD_DIM) = 1/4 for HEAD_DIM=16
+    localparam SCALE_SHIFT = 2;
     
     // =========================================================================
     // State machine
@@ -126,7 +131,7 @@ module attention_head #(
     endfunction
     
     // =========================================================================
-    // Dot product computation (Q·K^T)
+    // Dot product computation (Q·K^T) - Optimized for HEAD_DIM=16
     // =========================================================================
     wire signed [ACT_WIDTH-1:0] q_elements [0:HEAD_DIM-1];
     wire signed [ACT_WIDTH-1:0] k_elements [0:HEAD_DIM-1];
@@ -141,44 +146,30 @@ module attention_head #(
         end
     endgenerate
     
-    // Reduction tree for dot product
-    wire signed [ACT_WIDTH*2+1:0] sum_l1 [0:31];
+    // Reduction tree for dot product (4 levels for HEAD_DIM=16)
+    wire signed [ACT_WIDTH*2+1:0] sum_l1 [0:7];
     generate
-        for (gi = 0; gi < 32; gi = gi + 1) begin : l1_gen
+        for (gi = 0; gi < 8; gi = gi + 1) begin : l1_gen
             assign sum_l1[gi] = $signed(products_qk[gi*2]) + $signed(products_qk[gi*2+1]);
         end
     endgenerate
     
-    wire signed [ACT_WIDTH*2+2:0] sum_l2 [0:15];
+    wire signed [ACT_WIDTH*2+2:0] sum_l2 [0:3];
     generate
-        for (gi = 0; gi < 16; gi = gi + 1) begin : l2_gen
+        for (gi = 0; gi < 4; gi = gi + 1) begin : l2_gen
             assign sum_l2[gi] = $signed(sum_l1[gi*2]) + $signed(sum_l1[gi*2+1]);
         end
     endgenerate
     
-    wire signed [ACT_WIDTH*2+3:0] sum_l3 [0:7];
-    generate
-        for (gi = 0; gi < 8; gi = gi + 1) begin : l3_gen
-            assign sum_l3[gi] = $signed(sum_l2[gi*2]) + $signed(sum_l2[gi*2+1]);
-        end
-    endgenerate
+    wire signed [ACT_WIDTH*2+3:0] sum_l3 [0:1];
+    assign sum_l3[0] = $signed(sum_l2[0]) + $signed(sum_l2[1]);
+    assign sum_l3[1] = $signed(sum_l2[2]) + $signed(sum_l2[3]);
     
-    wire signed [ACT_WIDTH*2+4:0] sum_l4 [0:3];
-    generate
-        for (gi = 0; gi < 4; gi = gi + 1) begin : l4_gen
-            assign sum_l4[gi] = $signed(sum_l3[gi*2]) + $signed(sum_l3[gi*2+1]);
-        end
-    endgenerate
-    
-    wire signed [ACT_WIDTH*2+5:0] sum_l5 [0:1];
-    assign sum_l5[0] = $signed(sum_l4[0]) + $signed(sum_l4[1]);
-    assign sum_l5[1] = $signed(sum_l4[2]) + $signed(sum_l4[3]);
-    
-    wire signed [ACT_WIDTH*2+6:0] dot_product_raw;
-    assign dot_product_raw = $signed(sum_l5[0]) + $signed(sum_l5[1]);
+    wire signed [ACT_WIDTH*2+4:0] dot_product_raw;
+    assign dot_product_raw = $signed(sum_l3[0]) + $signed(sum_l3[1]);
     
     wire signed [SCORE_WIDTH-1:0] dot_product_scaled;
-    assign dot_product_scaled = dot_product_raw[ACT_WIDTH*2+6:SCALE_SHIFT];
+    assign dot_product_scaled = dot_product_raw[ACT_WIDTH*2+4:SCALE_SHIFT];
     
     // =========================================================================
     // PWL exp approximation for softmax

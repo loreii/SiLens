@@ -1,20 +1,24 @@
 // =============================================================================
-// MLP Block (Gated MLP / SwiGLU style) - Level 1 Synthesis Block
+// MLP Block Edge (Gated MLP / SwiGLU style) - Level 1 Synthesis Block
 // =============================================================================
-// Implements Gated MLP used in modern transformers:
+// Edge-optimized Gated MLP for NanoViT transformers:
 //   out = down_proj(silu(gate_proj(x)) * up_proj(x))
 //
 // This is the SwiGLU variant where:
 //   - gate_proj and up_proj both project input to hidden dimension
-//   - SiLU activation applied to gate path
+//   - SiLU activation applied to gate path (PWL approximation)
 //   - Element-wise multiply gates the up_proj path
 //   - down_proj reduces back to input dimension
 //
-// Target: ~3mm² (1700µm × 1700µm) on SKY130
-// Reuse: 42× (30 in LLM @ 576→1536, 12 in Vision @ 768→3072)
+// Edge specifications:
+// - IN_DIM = 192 (NanoViT hidden dimension)
+// - HIDDEN_DIM = 384 (2× expansion for edge, not 2.67× like VLM)
+// - Target: 200MHz (5ns clock period)
+// - Target area: ~2mm² (1414µm × 1414µm) on SKY130
 //
 // Uses ternary weights (2-bit encoded: 00=0, 01=+1, 10=-1)
 // Streaming token interface for transformer integration
+// Uses generate blocks for Verilator compatibility
 //
 // License: Apache 2.0
 // =============================================================================
@@ -22,9 +26,9 @@
 `timescale 1ns / 1ps
 `default_nettype none
 
-module mlp_block #(
-    parameter IN_DIM      = 576,      // Input dimension (576 LLM, 768 Vision)
-    parameter HIDDEN_DIM  = 1536,     // Hidden dimension (1536 LLM, 3072 Vision)
+module mlp_block_edge #(
+    parameter IN_DIM      = 192,      // Input dimension (NanoViT hidden)
+    parameter HIDDEN_DIM  = 384,      // Hidden dimension (2× expansion for edge)
     parameter ACT_WIDTH   = 8,        // Activation bit width
     parameter ACC_WIDTH   = 24        // Accumulator width for MAC operations
 )(
@@ -66,8 +70,14 @@ module mlp_block #(
     // =========================================================================
     // Local Parameters
     // =========================================================================
-    localparam IN_ADDR_WIDTH   = $clog2(IN_DIM);
-    localparam HID_ADDR_WIDTH  = $clog2(HIDDEN_DIM);
+    localparam IN_ADDR_WIDTH   = $clog2(IN_DIM);    // 8 bits for 192
+    localparam HID_ADDR_WIDTH  = $clog2(HIDDEN_DIM); // 9 bits for 384
+    
+    // MAC chunk size (64-wide parallel MAC)
+    localparam MAC_WIDTH = 64;
+    localparam IN_CHUNKS = (IN_DIM + MAC_WIDTH - 1) / MAC_WIDTH;    // 3 chunks for 192
+    localparam HID_CHUNKS = (HIDDEN_DIM + MAC_WIDTH - 1) / MAC_WIDTH; // 6 chunks for 384
+    localparam CHUNK_BITS = $clog2(IN_CHUNKS > HID_CHUNKS ? IN_CHUNKS : HID_CHUNKS);
     
     // Pipeline stages
     localparam STAGE_IDLE       = 3'd0;
@@ -77,10 +87,9 @@ module mlp_block #(
     localparam STAGE_OUTPUT     = 3'd4;  // Output token
     
     // =========================================================================
-    // State Machine
+    // State Machine Registers
     // =========================================================================
     reg [2:0]                   state;
-    reg [2:0]                   next_state;
     reg [IN_ADDR_WIDTH-1:0]     input_cnt;
     reg [HID_ADDR_WIDTH-1:0]    hidden_cnt;
     reg                         token_last_reg;
@@ -92,31 +101,36 @@ module mlp_block #(
     reg                         input_valid;
     
     // =========================================================================
-    // Intermediate Buffers
+    // Intermediate Buffers (using generate for Verilator compatibility)
     // =========================================================================
     // Gate projection result (before SiLU)
-    reg [HIDDEN_DIM*ACT_WIDTH-1:0] gate_buffer;
+    reg signed [ACT_WIDTH-1:0] gate_buffer [0:HIDDEN_DIM-1];
     // Up projection result
-    reg [HIDDEN_DIM*ACT_WIDTH-1:0] up_buffer;
+    reg signed [ACT_WIDTH-1:0] up_buffer [0:HIDDEN_DIM-1];
     // After SiLU and multiply
-    reg [HIDDEN_DIM*ACT_WIDTH-1:0] gated_buffer;
+    reg signed [ACT_WIDTH-1:0] gated_buffer [0:HIDDEN_DIM-1];
     // Output buffer
-    reg [IN_DIM*ACT_WIDTH-1:0]    output_buffer;
-    reg                           output_valid;
+    reg signed [ACT_WIDTH-1:0] output_buffer [0:IN_DIM-1];
+    reg                        output_valid;
+    
+    // MAC control
+    reg [CHUNK_BITS-1:0]       mac_chunk_idx;
+    reg                        mac_phase;   // 0 = gate, 1 = up
+    reg                        acc_clear;
     
     // =========================================================================
-    // SiLU Approximation (PWL function, same as silu_unit)
+    // SiLU Approximation (PWL function - synthesizable, no LUT)
     // =========================================================================
     // SiLU(x) = x * sigmoid(x)
-    // Using piecewise linear approximation (no LUT - synthesizable)
+    // Using piecewise linear approximation
     
-    localparam signed [ACT_WIDTH-1:0] ONE_FP   = (1 << 4);        // 1.0 in Q4.4
-    localparam signed [ACT_WIDTH-1:0] BP_N2 = -2 * ONE_FP;        // -32
-    localparam signed [ACT_WIDTH-1:0] BP_N1 = -1 * ONE_FP;        // -16
-    localparam signed [ACT_WIDTH-1:0] BP_P1 =  1 * ONE_FP;        // +16
-    localparam signed [ACT_WIDTH-1:0] BP_P2 =  2 * ONE_FP;        // +32
+    localparam signed [ACT_WIDTH-1:0] ONE_FP = 8'sd16;     // 1.0 in Q4.4
+    localparam signed [ACT_WIDTH-1:0] BP_N2  = -8'sd32;    // -2.0
+    localparam signed [ACT_WIDTH-1:0] BP_N1  = -8'sd16;    // -1.0
+    localparam signed [ACT_WIDTH-1:0] BP_P1  = 8'sd16;     // +1.0
+    localparam signed [ACT_WIDTH-1:0] BP_P2  = 8'sd32;     // +2.0
     
-    // PWL sigmoid approximation
+    // PWL sigmoid approximation function
     function automatic signed [ACT_WIDTH-1:0] pwl_sigmoid;
         input signed [ACT_WIDTH-1:0] x;
         reg signed [2*ACT_WIDTH-1:0] interp;
@@ -155,64 +169,81 @@ module mlp_block #(
         begin
             sig = pwl_sigmoid(x);
             prod = x * sig;
-            // Normalize and saturate
-            if (prod > $signed({{(ACT_WIDTH){1'b0}}, {(ACT_WIDTH-1){1'b1}}}))
-                silu_func = {1'b0, {(ACT_WIDTH-1){1'b1}}};
-            else if (prod < $signed({{(ACT_WIDTH+1){1'b1}}, {(ACT_WIDTH-1){1'b0}}}))
-                silu_func = {1'b1, {(ACT_WIDTH-1){1'b0}}};
+            // Normalize by 16 (Q4.4 format) and saturate
+            if (prod > $signed(16'sd2047))
+                silu_func = 8'sd127;
+            else if (prod < $signed(-16'sd2048))
+                silu_func = -8'sd128;
             else
-                silu_func = prod[ACT_WIDTH+3:4];  // Shift right by FRAC
+                silu_func = prod[ACT_WIDTH+3:4];
         end
     endfunction
     
     // =========================================================================
-    // Ternary MAC Unit (reused for all projections)
+    // Ternary MAC Unit - 64-wide parallel MAC
     // =========================================================================
-    // Process one row at a time for area efficiency
-    
-    wire signed [ACT_WIDTH-1:0] mac_activations [0:63];
-    wire [1:0]                  mac_weights [0:63];
-    wire signed [ACC_WIDTH-1:0] mac_result;
-    
-    // 64-wide parallel MAC (matches ternary_mac_array_64)
-    reg [63:0]                  mac_chunk_sel;
-    reg [5:0]                   mac_chunk_idx;
+    wire signed [ACT_WIDTH-1:0] mac_activations [0:MAC_WIDTH-1];
+    wire [1:0]                  mac_weights_gate [0:MAC_WIDTH-1];
+    wire [1:0]                  mac_weights_up [0:MAC_WIDTH-1];
+    wire [1:0]                  mac_weights_down [0:MAC_WIDTH-1];
     
     // Extract 64 activations for current MAC operation
     genvar gi;
     generate
-        for (gi = 0; gi < 64; gi = gi + 1) begin : mac_act_extract
-            wire [IN_ADDR_WIDTH-1:0] act_idx;
-            assign act_idx = mac_chunk_idx * 64 + gi;
+        for (gi = 0; gi < MAC_WIDTH; gi = gi + 1) begin : gen_mac_act_extract
+            wire [IN_ADDR_WIDTH:0] act_idx;
+            assign act_idx = mac_chunk_idx * MAC_WIDTH + gi;
             
             // Safely extract activation (zero if out of bounds)
-            wire in_bounds = (act_idx < IN_DIM);
+            wire in_bounds;
+            assign in_bounds = (act_idx < IN_DIM);
             assign mac_activations[gi] = in_bounds ? 
                 $signed(input_buffer[act_idx*ACT_WIDTH +: ACT_WIDTH]) : 
                 {ACT_WIDTH{1'b0}};
         end
     endgenerate
     
-    // Extract 64 weights based on current operation
-    wire [HIDDEN_DIM*2-1:0] current_weights;
-    assign current_weights = (state == STAGE_GATE_UP && !mac_chunk_sel[0]) ? gate_weight_data :
-                             (state == STAGE_GATE_UP &&  mac_chunk_sel[0]) ? up_weight_data :
-                             {{(HIDDEN_DIM*2-IN_DIM*2){1'b0}}, down_weight_data};
-    
+    // Extract 64 weights for gate projection
     generate
-        for (gi = 0; gi < 64; gi = gi + 1) begin : mac_weight_extract
-            wire [HID_ADDR_WIDTH-1:0] weight_offset;
-            assign weight_offset = hidden_cnt + gi;
-            
-            // Extract weight pair
-            assign mac_weights[gi] = current_weights[weight_offset*2 +: 2];
+        for (gi = 0; gi < MAC_WIDTH; gi = gi + 1) begin : gen_mac_weight_gate
+            wire [HID_ADDR_WIDTH:0] weight_offset;
+            assign weight_offset = hidden_cnt;
+            assign mac_weights_gate[gi] = gate_weight_data[weight_offset*2 +: 2];
         end
     endgenerate
     
-    // Parallel ternary MAC computation
-    wire signed [ACT_WIDTH:0] products [0:63];
+    // Extract 64 weights for up projection
     generate
-        for (gi = 0; gi < 64; gi = gi + 1) begin : ternary_mult
+        for (gi = 0; gi < MAC_WIDTH; gi = gi + 1) begin : gen_mac_weight_up
+            wire [HID_ADDR_WIDTH:0] weight_offset;
+            assign weight_offset = hidden_cnt;
+            assign mac_weights_up[gi] = up_weight_data[weight_offset*2 +: 2];
+        end
+    endgenerate
+    
+    // Extract 64 weights for down projection
+    generate
+        for (gi = 0; gi < MAC_WIDTH; gi = gi + 1) begin : gen_mac_weight_down
+            wire [IN_ADDR_WIDTH:0] weight_offset;
+            assign weight_offset = input_cnt;
+            assign mac_weights_down[gi] = down_weight_data[weight_offset*2 +: 2];
+        end
+    endgenerate
+    
+    // Select current weights based on state
+    wire [1:0] mac_weights [0:MAC_WIDTH-1];
+    generate
+        for (gi = 0; gi < MAC_WIDTH; gi = gi + 1) begin : gen_weight_select
+            assign mac_weights[gi] = (state == STAGE_GATE_UP && !mac_phase) ? mac_weights_gate[gi] :
+                                     (state == STAGE_GATE_UP &&  mac_phase) ? mac_weights_up[gi] :
+                                     mac_weights_down[gi];
+        end
+    endgenerate
+    
+    // Parallel ternary multiplication
+    wire signed [ACT_WIDTH:0] products [0:MAC_WIDTH-1];
+    generate
+        for (gi = 0; gi < MAC_WIDTH; gi = gi + 1) begin : gen_ternary_mult
             assign products[gi] = (mac_weights[gi] == 2'b01) ?  {mac_activations[gi][ACT_WIDTH-1], mac_activations[gi]} :
                                   (mac_weights[gi] == 2'b10) ? -{mac_activations[gi][ACT_WIDTH-1], mac_activations[gi]} :
                                                                 {(ACT_WIDTH+1){1'b0}};
@@ -228,16 +259,25 @@ module mlp_block #(
     wire signed [ACT_WIDTH+6:0] sum_l6;
     
     generate
-        for (gi = 0; gi < 32; gi = gi + 1) begin : l1_add
+        for (gi = 0; gi < 32; gi = gi + 1) begin : gen_l1_add
             assign sum_l1[gi] = $signed(products[gi*2]) + $signed(products[gi*2+1]);
         end
-        for (gi = 0; gi < 16; gi = gi + 1) begin : l2_add
+    endgenerate
+    
+    generate
+        for (gi = 0; gi < 16; gi = gi + 1) begin : gen_l2_add
             assign sum_l2[gi] = $signed(sum_l1[gi*2]) + $signed(sum_l1[gi*2+1]);
         end
-        for (gi = 0; gi < 8; gi = gi + 1) begin : l3_add
+    endgenerate
+    
+    generate
+        for (gi = 0; gi < 8; gi = gi + 1) begin : gen_l3_add
             assign sum_l3[gi] = $signed(sum_l2[gi*2]) + $signed(sum_l2[gi*2+1]);
         end
-        for (gi = 0; gi < 4; gi = gi + 1) begin : l4_add
+    endgenerate
+    
+    generate
+        for (gi = 0; gi < 4; gi = gi + 1) begin : gen_l4_add
             assign sum_l4[gi] = $signed(sum_l3[gi*2]) + $signed(sum_l3[gi*2+1]);
         end
     endgenerate
@@ -246,14 +286,14 @@ module mlp_block #(
     assign sum_l5[1] = $signed(sum_l4[2]) + $signed(sum_l4[3]);
     assign sum_l6 = $signed(sum_l5[0]) + $signed(sum_l5[1]);
     
-    // Sign-extend to accumulator width
+    // MAC result with proper sign extension
+    wire signed [ACC_WIDTH-1:0] mac_result;
     assign mac_result = {{(ACC_WIDTH-ACT_WIDTH-7){sum_l6[ACT_WIDTH+6]}}, sum_l6};
     
     // =========================================================================
     // Accumulator for multi-chunk MAC
     // =========================================================================
     reg signed [ACC_WIDTH-1:0] accumulator;
-    reg                        acc_clear;
     
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -267,31 +307,93 @@ module mlp_block #(
     
     // Saturate and truncate accumulator to activation width
     wire signed [ACT_WIDTH-1:0] acc_saturated;
-    assign acc_saturated = (accumulator > $signed({{(ACC_WIDTH-ACT_WIDTH){1'b0}}, {(ACT_WIDTH-1){1'b1}}})) ? 
-                           $signed({1'b0, {(ACT_WIDTH-1){1'b1}}}) :  // Max positive
-                           (accumulator < $signed({{(ACC_WIDTH-ACT_WIDTH+1){1'b1}}, {(ACT_WIDTH-1){1'b0}}})) ?
-                           $signed({1'b1, {(ACT_WIDTH-1){1'b0}}}) :  // Max negative  
+    assign acc_saturated = (accumulator > $signed(24'sd127)) ? 8'sd127 :
+                           (accumulator < $signed(-24'sd128)) ? -8'sd128 :
                            accumulator[ACT_WIDTH-1:0];
     
     // =========================================================================
     // SiLU Application
     // =========================================================================
     wire signed [ACT_WIDTH-1:0] silu_out;
-    
-    // Use function-based SiLU instead of LUT
     assign silu_out = silu_func(acc_saturated);
     
     // =========================================================================
     // Gating Multiply
     // =========================================================================
-    reg signed [ACT_WIDTH-1:0] gate_val;
-    reg signed [ACT_WIDTH-1:0] up_val;
+    reg signed [ACT_WIDTH-1:0] current_gate_val;
+    reg signed [ACT_WIDTH-1:0] current_up_val;
     wire signed [2*ACT_WIDTH-1:0] gated_product;
     wire signed [ACT_WIDTH-1:0] gated_val;
     
-    assign gated_product = silu_out * up_val;
-    // Truncate and saturate
-    assign gated_val = gated_product[2*ACT_WIDTH-2:ACT_WIDTH-1];
+    assign gated_product = silu_out * current_up_val;
+    // Truncate and saturate (Q4.4 * Q4.4 = Q8.8, need Q4.4)
+    assign gated_val = (gated_product > $signed(16'sd2047)) ? 8'sd127 :
+                       (gated_product < $signed(-16'sd2048)) ? -8'sd128 :
+                       gated_product[2*ACT_WIDTH-2:ACT_WIDTH-1];
+    
+    // =========================================================================
+    // Buffer updates using generate blocks (Verilator compatible)
+    // =========================================================================
+    
+    // Gate buffer updates
+    generate
+        for (gi = 0; gi < HIDDEN_DIM; gi = gi + 1) begin : gen_gate_buffer
+            always @(posedge clk or negedge rst_n) begin
+                if (!rst_n) begin
+                    gate_buffer[gi] <= {ACT_WIDTH{1'b0}};
+                end else if (state == STAGE_GATE_UP && !mac_phase && 
+                            mac_chunk_idx == IN_CHUNKS - 1 && hidden_cnt == gi) begin
+                    gate_buffer[gi] <= acc_saturated;
+                end
+            end
+        end
+    endgenerate
+    
+    // Up buffer updates
+    generate
+        for (gi = 0; gi < HIDDEN_DIM; gi = gi + 1) begin : gen_up_buffer
+            always @(posedge clk or negedge rst_n) begin
+                if (!rst_n) begin
+                    up_buffer[gi] <= {ACT_WIDTH{1'b0}};
+                end else if (state == STAGE_GATE_UP && mac_phase && 
+                            mac_chunk_idx == IN_CHUNKS - 1 && hidden_cnt == gi) begin
+                    up_buffer[gi] <= acc_saturated;
+                end
+            end
+        end
+    endgenerate
+    
+    // Gated buffer updates (after SiLU * up)
+    generate
+        for (gi = 0; gi < HIDDEN_DIM; gi = gi + 1) begin : gen_gated_buffer
+            always @(posedge clk or negedge rst_n) begin
+                if (!rst_n) begin
+                    gated_buffer[gi] <= {ACT_WIDTH{1'b0}};
+                end else if (state == STAGE_SILU_MUL && hidden_cnt == gi + 1) begin
+                    // Store result with one cycle delay
+                    gated_buffer[gi] <= gated_val;
+                end else if (state == STAGE_DOWN_PROJ && hidden_cnt == 0 && 
+                            mac_chunk_idx == 0 && acc_clear && gi == HIDDEN_DIM - 1) begin
+                    // Store last gated value
+                    gated_buffer[gi] <= gated_val;
+                end
+            end
+        end
+    endgenerate
+    
+    // Output buffer updates
+    generate
+        for (gi = 0; gi < IN_DIM; gi = gi + 1) begin : gen_output_buffer
+            always @(posedge clk or negedge rst_n) begin
+                if (!rst_n) begin
+                    output_buffer[gi] <= {ACT_WIDTH{1'b0}};
+                end else if (state == STAGE_DOWN_PROJ && 
+                            mac_chunk_idx == HID_CHUNKS - 1 && input_cnt == gi) begin
+                    output_buffer[gi] <= acc_saturated;
+                end
+            end
+        end
+    endgenerate
     
     // =========================================================================
     // State Machine Logic
@@ -304,11 +406,12 @@ module mlp_block #(
             input_valid <= 1'b0;
             output_valid <= 1'b0;
             token_last_reg <= 1'b0;
-            mac_chunk_idx <= 6'd0;
-            mac_chunk_sel <= 64'd0;
+            mac_chunk_idx <= {CHUNK_BITS{1'b0}};
+            mac_phase <= 1'b0;
             acc_clear <= 1'b1;
-            gate_val <= {ACT_WIDTH{1'b0}};
-            up_val <= {ACT_WIDTH{1'b0}};
+            current_gate_val <= {ACT_WIDTH{1'b0}};
+            current_up_val <= {ACT_WIDTH{1'b0}};
+            input_buffer <= {(IN_DIM*ACT_WIDTH){1'b0}};
         end else begin
             case (state)
                 STAGE_IDLE: begin
@@ -320,8 +423,8 @@ module mlp_block #(
                         state <= STAGE_GATE_UP;
                         input_cnt <= {IN_ADDR_WIDTH{1'b0}};
                         hidden_cnt <= {HID_ADDR_WIDTH{1'b0}};
-                        mac_chunk_idx <= 6'd0;
-                        mac_chunk_sel <= 64'd0;  // 0 = gate, 1 = up
+                        mac_chunk_idx <= {CHUNK_BITS{1'b0}};
+                        mac_phase <= 1'b0;
                         acc_clear <= 1'b1;
                     end
                 end
@@ -330,19 +433,17 @@ module mlp_block #(
                     // Process all input dimensions in chunks of 64
                     acc_clear <= 1'b0;
                     
-                    if (mac_chunk_idx == (IN_DIM + 63) / 64 - 1) begin
+                    if (mac_chunk_idx == IN_CHUNKS - 1) begin
                         // Finished one hidden dimension
-                        mac_chunk_idx <= 6'd0;
+                        mac_chunk_idx <= {CHUNK_BITS{1'b0}};
                         acc_clear <= 1'b1;
                         
-                        if (!mac_chunk_sel[0]) begin
+                        if (!mac_phase) begin
                             // Just finished gate_proj for this hidden dim
-                            gate_buffer[hidden_cnt*ACT_WIDTH +: ACT_WIDTH] <= acc_saturated;
-                            mac_chunk_sel <= 64'd1;  // Switch to up_proj
+                            mac_phase <= 1'b1;  // Switch to up_proj
                         end else begin
                             // Just finished up_proj for this hidden dim
-                            up_buffer[hidden_cnt*ACT_WIDTH +: ACT_WIDTH] <= acc_saturated;
-                            mac_chunk_sel <= 64'd0;  // Back to gate
+                            mac_phase <= 1'b0;  // Back to gate
                             
                             if (hidden_cnt == HIDDEN_DIM - 1) begin
                                 hidden_cnt <= {HID_ADDR_WIDTH{1'b0}};
@@ -358,19 +459,14 @@ module mlp_block #(
                 
                 STAGE_SILU_MUL: begin
                     // Apply SiLU to gate and multiply with up
-                    gate_val <= gate_buffer[hidden_cnt*ACT_WIDTH +: ACT_WIDTH];
-                    up_val <= up_buffer[hidden_cnt*ACT_WIDTH +: ACT_WIDTH];
-                    
-                    // Store result from previous cycle (if not first)
-                    if (hidden_cnt > 0) begin
-                        gated_buffer[(hidden_cnt-1)*ACT_WIDTH +: ACT_WIDTH] <= gated_val;
-                    end
+                    current_gate_val <= gate_buffer[hidden_cnt];
+                    current_up_val <= up_buffer[hidden_cnt];
                     
                     if (hidden_cnt == HIDDEN_DIM - 1) begin
                         state <= STAGE_DOWN_PROJ;
                         hidden_cnt <= {HID_ADDR_WIDTH{1'b0}};
                         input_cnt <= {IN_ADDR_WIDTH{1'b0}};
-                        mac_chunk_idx <= 6'd0;
+                        mac_chunk_idx <= {CHUNK_BITS{1'b0}};
                         acc_clear <= 1'b1;
                     end else begin
                         hidden_cnt <= hidden_cnt + 1'b1;
@@ -378,18 +474,12 @@ module mlp_block #(
                 end
                 
                 STAGE_DOWN_PROJ: begin
-                    // Store last gated value
-                    if (hidden_cnt == 0 && mac_chunk_idx == 0 && acc_clear) begin
-                        gated_buffer[(HIDDEN_DIM-1)*ACT_WIDTH +: ACT_WIDTH] <= gated_val;
-                    end
-                    
                     acc_clear <= 1'b0;
                     
-                    if (mac_chunk_idx == (HIDDEN_DIM + 63) / 64 - 1) begin
+                    if (mac_chunk_idx == HID_CHUNKS - 1) begin
                         // Finished one output dimension
-                        mac_chunk_idx <= 6'd0;
+                        mac_chunk_idx <= {CHUNK_BITS{1'b0}};
                         acc_clear <= 1'b1;
-                        output_buffer[input_cnt*ACT_WIDTH +: ACT_WIDTH] <= acc_saturated;
                         
                         if (input_cnt == IN_DIM - 1) begin
                             state <= STAGE_OUTPUT;
@@ -418,18 +508,28 @@ module mlp_block #(
     end
     
     // =========================================================================
+    // Output Data Packing (using generate for Verilator compatibility)
+    // =========================================================================
+    wire [IN_DIM*ACT_WIDTH-1:0] token_data_out_packed;
+    generate
+        for (gi = 0; gi < IN_DIM; gi = gi + 1) begin : gen_output_pack
+            assign token_data_out_packed[gi*ACT_WIDTH +: ACT_WIDTH] = output_buffer[gi];
+        end
+    endgenerate
+    
+    // =========================================================================
     // Output Assignments
     // =========================================================================
     assign token_ready_in = (state == STAGE_IDLE);
     assign token_valid_out = output_valid;
-    assign token_data_out = output_buffer;
+    assign token_data_out = token_data_out_packed;
     assign token_last_out = token_last_reg;
     assign busy = (state != STAGE_IDLE);
     
     // Weight memory interface
-    assign gate_weight_rd_en = (state == STAGE_GATE_UP) && !mac_chunk_sel[0];
+    assign gate_weight_rd_en = (state == STAGE_GATE_UP) && !mac_phase;
     assign gate_weight_addr = input_cnt;
-    assign up_weight_rd_en = (state == STAGE_GATE_UP) && mac_chunk_sel[0];
+    assign up_weight_rd_en = (state == STAGE_GATE_UP) && mac_phase;
     assign up_weight_addr = input_cnt;
     assign down_weight_rd_en = (state == STAGE_DOWN_PROJ);
     assign down_weight_addr = hidden_cnt;

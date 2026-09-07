@@ -1,51 +1,49 @@
 {
     "//": "=======================================================================",
-    "//": "Attention Head Block - Level 1 Primitive",
+    "//": "MLP Block Edge (Gated MLP / SwiGLU style) - Level 1 Primitive",
     "//": "=======================================================================",
-    "//": "Single attention head computation: Attention(Q,K,V) = softmax(Q·K^T / sqrt(d)) · V",
-    "//": "Reused 414× total across the SoC (144 in vision encoder, 270 in LLM).",
-    "//": "Target: ~2mm² on SKY130 (1400µm × 1400µm)",
+    "//": "Edge-optimized Gated MLP for NanoViT: out = down_proj(silu(gate_proj(x)) * up_proj(x))",
+    "//": "IN_DIM=192 (NanoViT hidden), HIDDEN_DIM=384 (2× expansion for edge)",
+    "//": "Smaller footprint for edge deployment on SKY130.",
     
-    "DESIGN_NAME": "attention_head",
+    "DESIGN_NAME": "mlp_block_edge",
     
     "VERILOG_FILES": [
-        "dir::src/attention_head.v"
+        "dir::src/mlp_block_edge.v"
     ],
     
     "//": "=== Clock ===",
     "CLOCK_PORT": "clk",
-    "CLOCK_PERIOD": 14.0,
-    "//": "10ns = 100 MHz target frequency",
+    "CLOCK_PERIOD": 5.0,
+    "//": "5ns = 200 MHz target frequency for edge performance",
     
     "//": "=== Die Area ===",
-    "//": "Target: ~6.25mm² = 2500µm × 2500µm (larger for routing margin)",
+    "//": "Target: ~2mm² = 1414µm × 1414µm",
     "FP_SIZING": "absolute",
-    "DIE_AREA": "0 0 2500 2500",
-    "CORE_AREA": "20 20 2480 2480",
+    "DIE_AREA": "0 0 1414 1414",
+    "CORE_AREA": "20 20 1394 1394",
     
     "//": "=== This is a MACRO, not top-level ===",
     "DESIGN_IS_CORE": false,
     
     "//": "=== Placement ===",
-    "//": "Very low density (0.25) to maximize routing space",
-    "PL_TARGET_DENSITY": 0.25,
+    "PL_TARGET_DENSITY": 0.40,
     "PL_ROUTABILITY_DRIVEN": true,
     "PL_TIME_DRIVEN": true,
     
     "//": "=== Synthesis ===",
     "SYNTH_STRATEGY": "AREA 2",
     "SYNTH_MAX_FANOUT": 6,
-    "SYNTH_BUFFERING": true,
+    "//": "Area-optimized synthesis for edge block",
     
     "//": "=== CTS ===",
     "CTS_TARGET_SKEW": 100,
-    "CTS_SINK_CLUSTERING_SIZE": 25,
+    "CTS_SINK_CLUSTERING_SIZE": 20,
+    "//": "Tighter CTS for 200MHz target",
     
     "//": "=== Routing ===",
-    "//": "Aggressive routing settings for high pin-count design",
-    "GRT_ADJUSTMENT": 0.4,
-    "GRT_OVERFLOW_ITERS": 200,
-    "GRT_ALLOW_CONGESTION": true,
+    "GRT_ADJUSTMENT": 0.20,
+    "//": "Standard routing resources for moderate density",
     
     "//": "=== Signoff - Must be strict for Level 1 ===",
     "RUN_KLAYOUT_XOR": true,
@@ -62,7 +60,7 @@
     
     "//": "=== Antenna protection ===",
     "DIODE_INSERTION_STRATEGY": 3,
-    "//": "Strategy 3: insert diodes preventively for long routes",
+    "//": "Strategy 3: insert diodes preventively",
     
     "//": "=== Outputs for reuse ===",
     "GENERATE_FINAL_SUMMARY_REPORT": true,

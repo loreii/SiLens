@@ -14,7 +14,7 @@
     
     "//": "=== Clock ===",
     "CLOCK_PORT": "clk",
-    "CLOCK_PERIOD": 10.0,
+    "CLOCK_PERIOD": 14.0,
     
     "//": "=== Die Area ===",
     "//": "Target: ~0.3mm² = 550µm × 550µm",

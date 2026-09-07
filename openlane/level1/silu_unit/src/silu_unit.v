@@ -95,7 +95,7 @@ module silu_unit #(
     // =========================================================================
     // Using a function for synthesis efficiency
     
-    function signed [WIDTH-1:0] pwl_sigmoid;
+    function automatic signed [WIDTH-1:0] pwl_sigmoid;
         input signed [WIDTH-1:0] x;
         reg signed [WIDTH-1:0] result;
         reg signed [2*WIDTH-1:0] interp;
@@ -146,7 +146,7 @@ module silu_unit #(
     // Saturation function for output
     // =========================================================================
     
-    function signed [WIDTH-1:0] saturate;
+    function automatic signed [WIDTH-1:0] saturate;
         input signed [2*WIDTH-1:0] val;
         localparam signed [2*WIDTH-1:0] MAX_VAL = (1 << (WIDTH-1)) - 1;
         localparam signed [2*WIDTH-1:0] MIN_VAL = -(1 << (WIDTH-1));
@@ -164,20 +164,27 @@ module silu_unit #(
     // Pipeline Stage 1: Compute sigmoid(x) for all parallel elements
     // =========================================================================
     
-    integer i;
+    genvar gi;
+    generate
+        for (gi = 0; gi < PARALLEL; gi = gi + 1) begin : gen_stage1
+            always @(posedge clk or negedge rst_n) begin
+                if (!rst_n) begin
+                    x_s1[gi]   <= {WIDTH{1'b0}};
+                    sig_s1[gi] <= {WIDTH{1'b0}};
+                end else if (!pipe_stall) begin
+                    x_s1[gi]   <= $signed(x_in[gi*WIDTH +: WIDTH]);
+                    sig_s1[gi] <= pwl_sigmoid($signed(x_in[gi*WIDTH +: WIDTH]));
+                end
+            end
+        end
+    endgenerate
+    
+    // Valid signal for stage 1
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             valid_s1 <= 1'b0;
-            for (i = 0; i < PARALLEL; i = i + 1) begin
-                x_s1[i]   <= {WIDTH{1'b0}};
-                sig_s1[i] <= {WIDTH{1'b0}};
-            end
         end else if (!pipe_stall) begin
             valid_s1 <= valid_in;
-            for (i = 0; i < PARALLEL; i = i + 1) begin
-                x_s1[i]   <= $signed(x_in[i*WIDTH +: WIDTH]);
-                sig_s1[i] <= pwl_sigmoid($signed(x_in[i*WIDTH +: WIDTH]));
-            end
         end
     end
     
@@ -185,18 +192,25 @@ module silu_unit #(
     // Pipeline Stage 2: Multiply x * sigmoid(x)
     // =========================================================================
     
+    generate
+        for (gi = 0; gi < PARALLEL; gi = gi + 1) begin : gen_stage2
+            always @(posedge clk or negedge rst_n) begin
+                if (!rst_n) begin
+                    prod_s2[gi] <= {(2*WIDTH){1'b0}};
+                end else if (!pipe_stall) begin
+                    // x * sigmoid(x), result is in Q8.8 format
+                    prod_s2[gi] <= x_s1[gi] * sig_s1[gi];
+                end
+            end
+        end
+    endgenerate
+    
+    // Valid signal for stage 2
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             valid_s2 <= 1'b0;
-            for (i = 0; i < PARALLEL; i = i + 1) begin
-                prod_s2[i] <= {(2*WIDTH){1'b0}};
-            end
         end else if (!pipe_stall) begin
             valid_s2 <= valid_s1;
-            for (i = 0; i < PARALLEL; i = i + 1) begin
-                // x * sigmoid(x), result is in Q8.8 format
-                prod_s2[i] <= x_s1[i] * sig_s1[i];
-            end
         end
     end
     
@@ -204,16 +218,25 @@ module silu_unit #(
     // Pipeline Stage 3: Output with saturation
     // =========================================================================
     
+    generate
+        for (gi = 0; gi < PARALLEL; gi = gi + 1) begin : gen_stage3
+            always @(posedge clk or negedge rst_n) begin
+                if (!rst_n) begin
+                    y_out[gi*WIDTH +: WIDTH] <= {WIDTH{1'b0}};
+                end else if (!pipe_stall) begin
+                    // Shift right by FRAC to normalize back to Q4.4, then saturate
+                    y_out[gi*WIDTH +: WIDTH] <= saturate(prod_s2[gi] >>> FRAC);
+                end
+            end
+        end
+    endgenerate
+    
+    // Valid signal for output
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             valid_out <= 1'b0;
-            y_out     <= {(PARALLEL*WIDTH){1'b0}};
         end else if (!pipe_stall) begin
             valid_out <= valid_s2;
-            for (i = 0; i < PARALLEL; i = i + 1) begin
-                // Shift right by FRAC to normalize back to Q4.4, then saturate
-                y_out[i*WIDTH +: WIDTH] <= saturate(prod_s2[i] >>> FRAC);
-            end
         end
     end
 

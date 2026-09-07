@@ -1,50 +1,53 @@
 {
     "//": "=======================================================================",
-    "//": "Attention Head Block - Level 1 Primitive",
+    "//": "Attention Head Block (EDGE) - Level 1 Primitive - Edge Vision Variant",
     "//": "=======================================================================",
-    "//": "Single attention head computation: Attention(Q,K,V) = softmax(Q·K^T / sqrt(d)) · V",
-    "//": "Reused 414× total across the SoC (144 in vision encoder, 270 in LLM).",
-    "//": "Target: ~2mm² on SKY130 (1400µm × 1400µm)",
+    "//": "Edge-optimized attention head for SiLens Edge synthesis.",
+    "//": "HEAD_DIM: 64 (192-dim / 3 heads), MAX_SEQ: 64 (vision chunk size)",
+    "//": "Estimated IO: ~2500 pins (64×64 matrix operations)",
+    "//": "Target: ~1.5mm² on SKY130 (1225µm × 1225µm)",
     
-    "DESIGN_NAME": "attention_head",
+    "DESIGN_NAME": "attention_head_edge",
     
     "VERILOG_FILES": [
-        "dir::src/attention_head.v"
+        "dir::src/attention_head_edge.v"
     ],
     
     "//": "=== Clock ===",
     "CLOCK_PORT": "clk",
-    "CLOCK_PERIOD": 14.0,
-    "//": "10ns = 100 MHz target frequency",
+    "CLOCK_PERIOD": 5.0,
+    "//": "5ns = 200 MHz target frequency (Edge vision requirement)",
     
     "//": "=== Die Area ===",
-    "//": "Target: ~6.25mm² = 2500µm × 2500µm (larger for routing margin)",
+    "//": "Target: ~1.5mm² = 1225µm × 1225µm",
     "FP_SIZING": "absolute",
-    "DIE_AREA": "0 0 2500 2500",
-    "CORE_AREA": "20 20 2480 2480",
+    "DIE_AREA": "0 0 1225 1225",
+    "CORE_AREA": "25 25 1200 1200",
     
     "//": "=== This is a MACRO, not top-level ===",
     "DESIGN_IS_CORE": false,
     
     "//": "=== Placement ===",
-    "//": "Very low density (0.25) to maximize routing space",
-    "PL_TARGET_DENSITY": 0.25,
+    "//": "Moderate density for better routability at 200MHz",
+    "PL_TARGET_DENSITY": 0.40,
     "PL_ROUTABILITY_DRIVEN": true,
     "PL_TIME_DRIVEN": true,
     
     "//": "=== Synthesis ===",
+    "//": "Balanced strategy for Edge performance requirements",
     "SYNTH_STRATEGY": "AREA 2",
     "SYNTH_MAX_FANOUT": 6,
     "SYNTH_BUFFERING": true,
     
     "//": "=== CTS ===",
-    "CTS_TARGET_SKEW": 100,
-    "CTS_SINK_CLUSTERING_SIZE": 25,
+    "//": "Tighter skew target for 200MHz operation",
+    "CTS_TARGET_SKEW": 50,
+    "CTS_SINK_CLUSTERING_SIZE": 20,
     
     "//": "=== Routing ===",
-    "//": "Aggressive routing settings for high pin-count design",
-    "GRT_ADJUSTMENT": 0.4,
-    "GRT_OVERFLOW_ITERS": 200,
+    "//": "Moderate settings for larger design",
+    "GRT_ADJUSTMENT": 0.25,
+    "GRT_OVERFLOW_ITERS": 150,
     "GRT_ALLOW_CONGESTION": true,
     
     "//": "=== Signoff - Must be strict for Level 1 ===",
@@ -69,6 +72,7 @@
     
     "VERILOG_DEFINES": [
         "SYNTHESIS_SKY130",
-        "LEVEL1_MACRO"
+        "LEVEL1_MACRO",
+        "EDGE_VARIANT"
     ]
 }
