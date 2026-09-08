@@ -22,7 +22,7 @@ This eliminates the memory bottleneck that limits traditional AI accelerators, e
 
 | Component | Status |
 |-----------|--------|
-| Architecture specification | 🟡 In progress |
+| Architecture specification | 🟢 Complete |
 | RTL design (Verilog) | 🟢 Core modules complete |
 | RTL simulation | 🟢 E2E pipeline verified |
 | **OpenLane synthesis** | 🟢 **5 blocks DRC/LVS clean** |
